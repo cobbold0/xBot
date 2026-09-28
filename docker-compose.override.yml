@@ -1,0 +1,4 @@
+# Local-only: publishes the dashboard on the host. Coolify deploys with an explicit -f, so this file is not used there.
+services:
+  web:
+    ports: ["${WEB_PORT:-3000}:3000"]

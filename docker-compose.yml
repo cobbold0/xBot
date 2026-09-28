@@ -57,7 +57,6 @@ services:
     restart: unless-stopped
     environment: *app-env
     expose: ["3000"]
-    ports: ["${WEB_PORT:-3000}:3000"]
     depends_on:
       db: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }
