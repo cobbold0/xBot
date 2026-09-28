@@ -7,8 +7,8 @@ Create a key at console.anthropic.com → `ANTHROPIC_API_KEY`. Check current pri
 `rettiwt-api` authenticates with a base64 string of your logged-in browser cookies.
 1. Log in to x.com in a desktop browser (preferably a dedicated automation account).
 2. DevTools → Application/Storage → Cookies → `https://x.com`. Copy the values of `auth_token`, `ct0`, `twid`.
-3. In the DevTools console run: `btoa("auth_token=<v>;ct0=<v>;twid=<v>;")`
-4. Put the output in `X_API_KEY`. Treat it like a password: never commit it, paste it into chat, or log it (the app redacts these patterns, but keep it out of source control).
+3. Set `X_API_KEY` to the raw string `auth_token=<v>;ct0=<v>;twid=<v>;` (the app base64-encodes it for you; `btoa` in the console can fail on invisible characters copied from DevTools). A pre-encoded base64 value also works.
+4. Copy each value carefully (`twid` looks like `u%3D123...`; keep it as-is). Treat it like a password: never commit it, paste it into chat, or log it (the app redacts these patterns, but keep it out of source control).
 5. Cookies expire or are invalidated when you log out or X rotates the session. The dashboard shows `expired`; repeat these steps.
 
 ## 3. Dashboard auth

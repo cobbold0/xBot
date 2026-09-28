@@ -82,5 +82,7 @@ export class RettiwtClient implements XClient {
 export function createXClient(): XClient {
   const key = process.env.X_API_KEY;
   if (!key) throw new XError('auth', 'X_API_KEY is not set');
-  return new RettiwtClient(key);
+  // Accept either the raw cookie string ("auth_token=..;ct0=..;twid=..;") or its base64 form.
+  const cleaned = key.trim().replace(/^["']|["']$/g, '');
+  return new RettiwtClient(/auth_token=/.test(cleaned) ? Buffer.from(cleaned, 'utf8').toString('base64') : cleaned);
 }
