@@ -8,10 +8,10 @@ export const dynamic = 'force-dynamic';
 
 const Body = z.discriminatedUnion('action', [
   z.object({ action: z.literal('create'), text: z.string().trim().min(1).max(1000) }),
-  z.object({ action: z.literal('edit'), id: z.number().int(), text: z.string().trim().min(1).max(1000) }),
-  z.object({ action: z.literal('approve'), id: z.number().int(), scheduledFor: z.string().datetime().optional() }),
-  z.object({ action: z.literal('reject'), id: z.number().int() }),
-  z.object({ action: z.literal('retry'), id: z.number().int() }),
+  z.object({ action: z.literal('edit'), id: z.coerce.number().int().positive(), text: z.string().trim().min(1).max(1000) }),
+  z.object({ action: z.literal('approve'), id: z.coerce.number().int().positive(), scheduledFor: z.string().datetime().optional() }),
+  z.object({ action: z.literal('reject'), id: z.coerce.number().int().positive() }),
+  z.object({ action: z.literal('retry'), id: z.coerce.number().int().positive() }),
 ]);
 
 export const POST = guard(async (req) => {
