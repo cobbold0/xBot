@@ -56,3 +56,22 @@ describe.skipIf(!HAS_DB)('push notifications & dashboard data', () => {
     expect(d.push).toEqual({ configured: true, devices: 2 });
   });
 });
+
+import { clearApiKey, credentialInfo, getStoredApiKey, saveApiKey } from '../../src/core/x/credentials';
+describe.skipIf(!HAS_DB)('stored X credentials', () => {
+  beforeEach(async () => { await freshDb(); });
+  afterAll(teardown);
+  it('normalizes, stores encrypted (no plaintext in DB), reads back, and clears', async () => {
+    await saveApiKey('auth_token=abc123token;ct0=def456ct0;twid=u=1849583763321163776');
+    const raw = JSON.stringify((await q(`SELECT value FROM settings WHERE key='x_credentials'`)).rows[0].value);
+    expect(raw).not.toMatch(/abc123token|def456ct0|1849583763321163776/);
+    expect(Buffer.from((await getStoredApiKey())!, 'base64').toString()).toBe('auth_token=abc123token;ct0=def456ct0;twid=u%3D1849583763321163776;');
+    expect((await credentialInfo()).source).toBe('dashboard');
+    await clearApiKey();
+    expect(await getStoredApiKey()).toBeNull();
+  });
+  it('rejects incomplete cookies without storing anything', async () => {
+    await expect(saveApiKey('auth_token=abc123token;ct0=def456ct0;')).rejects.toThrow(/twid/);
+    expect(await getStoredApiKey()).toBeNull();
+  });
+});

@@ -2,13 +2,14 @@ import { q } from '../core/db/pool';
 import { usageSummary } from '../core/ai/cost';
 import { getControl, getSettings } from '../core/settings';
 import { pushConfigured } from '../core/push';
+import { credentialInfo } from '../core/x/credentials';
 import { startOfDay, startOfMonth } from '../core/time';
 import { env } from '../core/config';
 
 export async function getDashboardData() {
   const tz = env().TZ;
   const day = startOfDay(tz);
-  const [control, settings, account, jobs, drafts, actions, errors, usage, counts, postStats, costSeries, actionSeries, byPurpose, subs] = await Promise.all([
+  const [control, settings, account, jobs, drafts, actions, errors, usage, counts, postStats, costSeries, actionSeries, byPurpose, subs, creds] = await Promise.all([
     getControl(),
     getSettings(),
     q(`SELECT status, username, checked_at, detail FROM account`),
@@ -23,6 +24,7 @@ export async function getDashboardData() {
     q(`SELECT to_char(created_at AT TIME ZONE $1, 'MM-DD') AS d, type, count(*)::int AS n FROM actions WHERE status = 'succeeded' AND created_at >= now() - interval '14 days' GROUP BY 1, 2 ORDER BY 1`, [tz]),
     q(`SELECT purpose AS name, sum(cost_usd)::float AS value FROM ai_usage WHERE created_at >= $1 GROUP BY 1 ORDER BY 2 DESC`, [startOfMonth(tz)]),
     q(`SELECT count(*)::int n FROM push_subscriptions`),
+    credentialInfo(),
   ]);
   const pivot = new Map<string, any>();
   for (const r of actionSeries.rows) {
@@ -35,6 +37,7 @@ export async function getDashboardData() {
     today: Object.fromEntries(counts.rows.map((r) => [r.type, r.n])) as Record<string, number>,
     posts: Object.fromEntries(postStats.rows.map((r) => [r.status, r.n])) as Record<string, number>,
     series: { cost: costSeries.rows as { d: string; cost: number; tokens: number }[], actions: [...pivot.values()] as { d: string; post: number; reply: number; like: number; repost: number }[], byPurpose: byPurpose.rows as { name: string; value: number }[] },
+    credentials: creds,
     push: { configured: pushConfigured(), devices: subs.rows[0].n as number },
   };
 }

@@ -23,7 +23,8 @@ export function mapError(e: unknown): XError {
   if (e instanceof XError) return e;
   const status = e instanceof TwitterError ? e.status : (e as any)?.response?.status ?? (e as any)?.status;
   const msg = e instanceof Error ? e.message : 'unknown X error';
-  if (status === 401 || status === 403 || /auth|log ?in|cookie|credential/i.test(msg)) return new XError('auth', msg, status);
+  if (status === 401 || status === 403) return new XError('auth', `X rejected the session cookies (HTTP ${status}). They may be expired, incomplete or copied incorrectly.`, status);
+  if (/auth|log ?in|cookie|credential/i.test(msg)) return new XError('auth', msg, status);
   if (status === 429) return new XError('rate_limit', msg, status);
   if (status && status >= 500) return new XError('temporary', msg, status);
   if (/ECONN|ETIMEDOUT|timeout|network/i.test(msg)) return new XError('temporary', msg, status);
@@ -40,7 +41,14 @@ export class RettiwtClient implements XClient {
   }
   verify() {
     return this.wrap(async () => {
-      const u = await this.r.user.details();
+      let u;
+      try {
+        u = await this.r.user.details();
+      } catch (e) {
+        // rettiwt throws a raw TypeError when X answers with an unexpected body (typical for rejected/expired sessions).
+        if (e instanceof TypeError) throw new XError('auth', 'X returned an unexpected response; the session cookies are probably expired or invalid. Enter fresh cookies in Settings.');
+        throw e;
+      }
       if (!u) throw new XError('auth', 'Session cookie is not valid (no logged-in user returned)');
       return { username: u.userName, id: u.id };
     });
@@ -97,8 +105,7 @@ export function normalizeApiKey(input: string): string {
   return Buffer.from(`auth_token=${authToken};ct0=${ct0};twid=u%3D${twidId};`, 'utf8').toString('base64');
 }
 
-export function createXClient(): XClient {
-  const key = process.env.X_API_KEY;
-  if (!key) throw new XError('auth', 'X_API_KEY is not set');
+export function createXClient(key = process.env.X_API_KEY): XClient {
+  if (!key) throw new XError('auth', 'No X credentials configured');
   return new RettiwtClient(normalizeApiKey(key));
 }

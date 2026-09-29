@@ -1,9 +1,9 @@
 'use client';
 import { useState } from 'react';
 import { Accordion, Affix, Button, Group, NumberInput, Paper, SimpleGrid, Stack, Switch, TagsInput, Text, Textarea } from '@mantine/core';
-import { IconLogout } from '@tabler/icons-react';
 import { useDash } from '@/components/dash';
 import { PushSettings } from '@/components/push';
+import { XCredentials } from '@/components/x-credentials';
 import { PageTitle } from '@/components/ui';
 import { api, type Dash } from '@/web/client';
 
@@ -34,7 +34,7 @@ export default function Settings() {
   return (
     <Stack gap="md" pb={dirty ? 72 : 0}>
       <PageTitle>Settings</PageTitle>
-      <Accordion multiple variant="separated" defaultValue={['safety', 'sources']}>
+      <Accordion multiple variant="separated" defaultValue={data.account.status === 'connected' ? ['safety', 'sources'] : ['account']}>
         <Accordion.Item value="safety">
           <Accordion.Control>Safety &amp; automation</Accordion.Control>
           <Accordion.Panel>
@@ -74,13 +74,7 @@ export default function Settings() {
 
         <Accordion.Item value="account">
           <Accordion.Control>Account &amp; session</Accordion.Control>
-          <Accordion.Panel>
-            <Stack gap="sm">
-              <Text size="sm">X: <b>{data.account.status}</b>{data.account.username ? ` (@${data.account.username})` : ''}</Text>
-              {data.account.status !== 'connected' && <Text size="xs" c="dimmed">Update the X_API_KEY environment variable with fresh cookies and restart the worker.</Text>}
-              <Button variant="default" leftSection={<IconLogout size={16} />} onClick={async () => { await api('/api/logout', 'POST'); location.href = '/login'; }}>Sign out</Button>
-            </Stack>
-          </Accordion.Panel>
+          <Accordion.Panel><XCredentials /></Accordion.Panel>
         </Accordion.Item>
       </Accordion>
 
