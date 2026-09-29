@@ -56,7 +56,7 @@ services:
     build: { context: ., dockerfile: Dockerfile.web }
     restart: unless-stopped
     environment: *app-env
-    expose: ["3000"]
+    expose: ["3007"]
     depends_on:
       db: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }
