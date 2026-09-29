@@ -1,10 +1,10 @@
 'use client';
 import { useState } from 'react';
-import { Badge, Card, Group, SegmentedControl, Stack, Text, ThemeIcon } from '@mantine/core';
+import { Badge, Button, Card, Group, SegmentedControl, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconHeart, IconMessageCircle, IconPencil, IconRepeat } from '@tabler/icons-react';
 import { useDash } from '@/components/dash';
 import { Empty, PageTitle } from '@/components/ui';
-import { fmtTime, relTime } from '@/web/client';
+import { api, fmtTime, relTime } from '@/web/client';
 
 /** Collapses identical source+message errors (newest first) into one row with a count. */
 function groupErrors<T extends { id: number; source: string; message: string; created_at: string }>(rows: T[]) {
@@ -21,7 +21,7 @@ const ICON = { post: IconPencil, reply: IconMessageCircle, like: IconHeart, repo
 const COLOR: Record<string, string> = { succeeded: 'teal', failed: 'red', dry_run: 'yellow', blocked: 'gray', attempted: 'blue' };
 
 export default function Activity() {
-  const { data } = useDash();
+  const { data, act } = useDash();
   const [tab, setTab] = useState('actions');
   return (
     <Stack gap="md">
@@ -56,7 +56,8 @@ export default function Activity() {
         <Card key={j.name} withBorder padding="sm">
           <Group justify="space-between" wrap="nowrap"><Text fw={600}>{j.name}</Text><Badge variant="light" color={j.last_status === 'error' ? 'red' : j.last_status === 'ok' ? 'teal' : 'gray'}>{j.last_status ?? 'pending'}</Badge></Group>
           <Text size="xs" c="dimmed">Last finished {relTime(j.last_finished_at)} · next {relTime(j.next_run_at)}</Text>
-          {j.last_error && <Text size="xs" c="red" mt={4}>{j.last_error}</Text>}
+          {j.last_error && <Text size="xs" c="red" mt={4} style={{ wordBreak: 'break-word' }}>{j.last_error}</Text>}
+          <Button size="compact-sm" variant="light" mt="xs" onClick={() => act(api('/api/jobs', 'POST', { name: j.name }), `${j.name} will run within 15 seconds`)}>Run now</Button>
         </Card>
       ))}
 

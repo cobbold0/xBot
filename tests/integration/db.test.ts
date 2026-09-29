@@ -314,6 +314,13 @@ describe.skipIf(!HAS_DB)('workflows (real Postgres, mocked X + Anthropic)', () =
       expect(secs).toBeGreaterThan(800);
       expect(secs).toBeLessThanOrEqual(900);
     });
+    it('a job scheduled for "run now" is claimed on the next tick', async () => {
+      const log: string[] = []; const s = mk(['a'], log);
+      await s.init(); await s.tick();
+      expect(await s.tick()).toEqual([]);
+      await q(`UPDATE jobs SET next_run_at = now() WHERE name = 'a'`);
+      expect(await s.tick()).toEqual(['a']);
+    });
     it('skips jobs when paused or emergency-stopped', async () => {
       const log: string[] = []; const s = mk(['a'], log);
       await s.init(); await setControl({ emergencyStop: true });
