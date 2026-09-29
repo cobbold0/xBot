@@ -21,6 +21,11 @@ function mapPost(t: Tweet): XPost {
 
 export function mapError(e: unknown): XError {
   if (e instanceof XError) return e;
+  // rettiwt's TwitterError constructor dereferences error.response.data, so a request that got NO response at all
+  // (DNS failure, timeout, connection refused/reset, blocked egress) surfaces as this TypeError.
+  if (e instanceof TypeError && /reading 'errors'/.test(e.message)) {
+    return new XError('temporary', 'No response from X (network error, timeout or blocked outbound connection from the server). This is not a cookie problem.');
+  }
   const status = e instanceof TwitterError ? e.status : (e as any)?.response?.status ?? (e as any)?.status;
   const msg = e instanceof Error ? e.message : 'unknown X error';
   if (status === 401 || status === 403) return new XError('auth', `X rejected the session cookies (HTTP ${status}). They may be expired, incomplete or copied incorrectly.`, status);
@@ -41,14 +46,7 @@ export class RettiwtClient implements XClient {
   }
   verify() {
     return this.wrap(async () => {
-      let u;
-      try {
-        u = await this.r.user.details();
-      } catch (e) {
-        // rettiwt throws a raw TypeError when X answers with an unexpected body (typical for rejected/expired sessions).
-        if (e instanceof TypeError) throw new XError('auth', 'X returned an unexpected response; the session cookies are probably expired or invalid. Enter fresh cookies in Settings.');
-        throw e;
-      }
+      const u = await this.r.user.details();
       if (!u) throw new XError('auth', 'Session cookie is not valid (no logged-in user returned)');
       return { username: u.userName, id: u.id };
     });
