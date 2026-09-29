@@ -80,3 +80,18 @@ describe('misc', () => {
     expect(startOfDay('UTC', new Date('2026-01-15T03:00:00Z')).toISOString()).toBe('2026-01-15T00:00:00.000Z');
   });
 });
+
+import { normalizeApiKey } from '../../src/core/x/rettiwt';
+describe('X_API_KEY normalization', () => {
+  const dec = (b: string) => Buffer.from(b, 'base64').toString();
+  const want = 'auth_token=abc123;ct0=def456;twid=u%3D1849583763321163776;';
+  it('accepts raw, without trailing semicolon, quoted, decoded twid, extra cookies, and base64', () => {
+    for (const k of [
+      want, want.slice(0, -1), `"${want}"`, 'auth_token=abc123; ct0=def456; twid=u=1849583763321163776', 'kdt=zzz;auth_token=abc123;ct0=def456;twid="u%3D1849583763321163776"', Buffer.from(want).toString('base64'),
+    ]) expect(dec(normalizeApiKey(k))).toBe(want);
+  });
+  it('reports which cookie is missing without leaking values', () => {
+    expect(() => normalizeApiKey('auth_token=abc123;ct0=def456;')).toThrow(/twid/);
+    expect(() => normalizeApiKey('auth_token=abc123;ct0=def456;')).not.toThrow(/abc123/);
+  });
+});
