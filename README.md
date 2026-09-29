@@ -10,7 +10,7 @@ See `docs/`: [ARCHITECTURE](docs/ARCHITECTURE.md) · [SAFETY](docs/SAFETY.md) ·
 ```bash
 cp .env.example .env            # fill in values (see docs/SETUP.md for X cookies)
 docker compose --env-file .env up -d --build
-open http://localhost:3000      # log in with DASHBOARD_PASSWORD
+open http://localhost:3007      # log in with DASHBOARD_PASSWORD
 ```
 Without Docker: `npm ci && npm run migrate && npm run worker` and `npm run dev` in a second shell (needs a Postgres `DATABASE_URL`).
 

@@ -79,10 +79,26 @@ export class RettiwtClient implements XClient {
   }
 }
 
+/**
+ * Accepts the raw cookie string or its base64 form, tolerating stray quotes/whitespace, a missing trailing ";",
+ * decoded twid ("u=123") and extra cookies. Returns the exact base64 form rettiwt-api requires.
+ */
+export function normalizeApiKey(input: string): string {
+  let s = input.trim().replace(/^["']|["']$/g, '').trim();
+  if (!/auth_token=/.test(s)) {
+    try { const d = Buffer.from(s, 'base64').toString('utf8'); if (/auth_token=/.test(d)) s = d; } catch { /* keep as-is */ }
+  }
+  const pick = (name: string) => new RegExp(`(?:^|[;\\s])${name}=([^;\\s]+)`).exec(s)?.[1]?.replace(/^["']|["']$/g, '');
+  const authToken = pick('auth_token'), ct0 = pick('ct0');
+  const twidId = /(\d{5,})/.exec(decodeURIComponent(pick('twid') ?? ''))?.[1];
+  if (!authToken || !ct0 || !twidId) {
+    throw new XError('auth', `X_API_KEY is missing ${[!authToken && 'auth_token', !ct0 && 'ct0', !twidId && 'twid (expected u%3D<digits>)'].filter(Boolean).join(', ')}`);
+  }
+  return Buffer.from(`auth_token=${authToken};ct0=${ct0};twid=u%3D${twidId};`, 'utf8').toString('base64');
+}
+
 export function createXClient(): XClient {
   const key = process.env.X_API_KEY;
   if (!key) throw new XError('auth', 'X_API_KEY is not set');
-  // Accept either the raw cookie string ("auth_token=..;ct0=..;twid=..;") or its base64 form.
-  const cleaned = key.trim().replace(/^["']|["']$/g, '');
-  return new RettiwtClient(/auth_token=/.test(cleaned) ? Buffer.from(cleaned, 'utf8').toString('base64') : cleaned);
+  return new RettiwtClient(normalizeApiKey(key));
 }
