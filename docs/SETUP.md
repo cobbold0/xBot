@@ -3,7 +3,10 @@
 ## 1. Anthropic key
 Create a key at console.anthropic.com → `ANTHROPIC_API_KEY`. Check current prices and set `ANTHROPIC_PRICE_*` (USD per million tokens); set `ANTHROPIC_MODEL` if you want another model.
 
-## 2. X session cookie (`X_API_KEY`)
+## 2. X session cookie
+**Easiest:** open the dashboard → Settings → *Account & session*, paste your cookies and tap *Verify & save*. They are checked against X first, then stored encrypted (AES-256-GCM, key derived from `SESSION_SECRET`) in the database; the worker picks them up within seconds, no restart. Changing `SESSION_SECRET` later means re-entering them. Cookies saved in the dashboard override `X_API_KEY`.
+
+**Alternative (`X_API_KEY` env var):**
 `rettiwt-api` authenticates with a base64 string of your logged-in browser cookies.
 1. Log in to x.com in a desktop browser (preferably a dedicated automation account).
 2. DevTools → Application/Storage → Cookies → `https://x.com`. Copy the values of `auth_token`, `ct0`, `twid`.

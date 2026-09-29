@@ -10,6 +10,7 @@ ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3007 HOSTNAME=0.0.0.0
 WORKDIR /app
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
+COPY --from=build /app/public ./public
 RUN chown -R node:node /app
 USER node
 EXPOSE 3007
