@@ -306,6 +306,14 @@ describe.skipIf(!HAS_DB)('workflows (real Postgres, mocked X + Anthropic)', () =
       expect(j.last_status).toBe('error'); expect(j.locked_by).toBeNull(); expect(j.last_error).not.toMatch(/SECRET1/);
       expect((await q('SELECT count(*) FROM errors')).rows[0].count).toBe('1');
     });
+    it('a failed job retries within 15 minutes even if its interval is hours', async () => {
+      const s = new Scheduler([{ name: 'slow', intervalSec: () => 4 * 3600, run: async () => { throw new Error('boom'); } }]);
+      await s.init();
+      await s.tick();
+      const secs = Number((await q(`SELECT extract(epoch FROM next_run_at - now()) s FROM jobs`)).rows[0].s);
+      expect(secs).toBeGreaterThan(800);
+      expect(secs).toBeLessThanOrEqual(900);
+    });
     it('skips jobs when paused or emergency-stopped', async () => {
       const log: string[] = []; const s = mk(['a'], log);
       await s.init(); await setControl({ emergencyStop: true });

@@ -12,6 +12,8 @@ export interface JobDef {
 }
 
 const LOCK_SECONDS = 600;
+/** A failed job retries after at most this long (not its full interval), so transient failures recover quickly. */
+const ERROR_RETRY_SECONDS = 900;
 
 export class Scheduler {
   readonly id = randomUUID();
@@ -40,7 +42,7 @@ export class Scheduler {
     await q(
       `UPDATE jobs SET locked_until = NULL, locked_by = NULL, last_finished_at = now(), last_status = $2, last_error = $3, next_run_at = now() + make_interval(secs => $4)
        WHERE name = $1 AND locked_by = $5`,
-      [job.name, status, error ? redact(error).slice(0, 500) : null, job.intervalSec(s), this.id],
+      [job.name, status, error ? redact(error).slice(0, 500) : null, status === 'error' ? Math.min(job.intervalSec(s), ERROR_RETRY_SECONDS) : job.intervalSec(s), this.id],
     );
   }
 
