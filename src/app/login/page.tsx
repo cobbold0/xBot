@@ -1,22 +1,27 @@
 'use client';
 import { useState } from 'react';
+import { Alert, Button, Center, Paper, PasswordInput, Stack, Title } from '@mantine/core';
 
 export default function Login() {
   const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setBusy(true); setErr('');
     const password = new FormData(e.currentTarget).get('password');
     const r = await fetch('/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password }) });
-    if (r.ok) location.href = '/'; else setErr(r.status === 429 ? 'Too many attempts. Try later.' : 'Invalid password');
+    if (r.ok) location.href = '/'; else { setErr(r.status === 429 ? 'Too many attempts. Try again later.' : 'Invalid password'); setBusy(false); }
   }
   return (
-    <main style={{ maxWidth: 360, marginTop: 80 }}>
-      <form className="card" onSubmit={submit}>
-        <h1>xBot</h1>
-        <label>Password<input name="password" type="password" autoFocus required autoComplete="current-password" /></label>
-        {err && <p className="bad">{err}</p>}
-        <p><button className="primary">Sign in</button></p>
-      </form>
-    </main>
+    <Center mih="100dvh" p="md">
+      <Paper withBorder p="lg" w="100%" maw={360} component="form" onSubmit={submit}>
+        <Stack>
+          <Title order={2}>xBot</Title>
+          <PasswordInput name="password" label="Password" autoFocus required autoComplete="current-password" />
+          {err && <Alert color="red" p="xs">{err}</Alert>}
+          <Button type="submit" loading={busy}>Sign in</Button>
+        </Stack>
+      </Paper>
+    </Center>
   );
 }

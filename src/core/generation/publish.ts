@@ -1,6 +1,7 @@
 import { q } from '../db/pool';
 import type { Settings } from '../settings';
 import { ActionExecutor } from '../policy/executor';
+import { notify } from '../push';
 
 /** Recovers drafts stuck in 'publishing' (crash mid-send): outcome unknown, so never auto-retried. */
 export async function recoverStuck() {
@@ -18,6 +19,7 @@ export async function publishDue(exec: ActionExecutor, s: Settings): Promise<str
   const r = await exec.execute({ type: d.kind, text: d.text, targetXId: d.reply_to_x_id ?? undefined, draftId: d.id });
   if (r.status === 'succeeded') {
     await q(`UPDATE drafts SET status='published', x_id=$2, published_at=now(), error=NULL WHERE id=$1`, [d.id, r.resultXId]);
+    await notify({ title: d.kind === 'reply' ? 'Reply sent' : 'Post published', body: d.text.slice(0, 120), tag: 'published', url: '/drafts' });
   } else if (r.status === 'dry_run') {
     await q(`UPDATE drafts SET status='approved', error='dry-run: not sent', scheduled_for = now() + interval '1 hour' WHERE id=$1`, [d.id]);
   } else if (r.retryable || r.status === 'blocked') {

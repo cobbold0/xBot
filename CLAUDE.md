@@ -9,7 +9,8 @@ Read before changing code: `docs/ARCHITECTURE.md`, `docs/SAFETY.md`, `docs/X_LIB
   - `config.ts` env parsing (zod). `db/` pg pool, migrations runner, repositories. `x/` adapter interface + rettiwt impl + fake.
   - `ai/` Anthropic client, prompts, schemas, cost tracking. `discovery/`, `generation/`, `policy/`, `scheduler/`, `settings.ts`, `log.ts` (redacting logger).
 - `src/worker/index.ts`  long-running process (tick loop, DB-backed jobs). Does NOT import Next.
-- `src/app/`       Next.js App Router: dashboard pages + `api/` routes. Auth via signed cookie (`src/web/auth.ts`).
+- `src/app/`       Next.js App Router: `(app)/` dashboard pages (client components on Mantine, data via `useDash()` polling `/api/status`), `api/` routes, `manifest.ts`, `icons/[size]`. Auth via signed cookie (`src/web/auth.ts`). `public/sw.js` = service worker (offline shell + push).
+- `src/components/` shared UI (`dash.tsx` context, `push.tsx`, `ui.tsx`). `src/core/push.ts` web-push (`notify`, `notifyOnce`).
 - `migrations/`    ordered `.sql` files, applied by `src/core/db/migrate.ts`.
 - `tests/`         vitest. `unit/` and `integration/` (integration uses pg-mem-free approach: real Postgres if `TEST_DATABASE_URL`, else skipped; workflows also covered with in-memory repos).
 

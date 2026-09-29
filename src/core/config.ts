@@ -13,6 +13,9 @@ const EnvSchema = z.object({
   DASHBOARD_PASSWORD: z.string().optional(),
   SESSION_SECRET: z.string().optional(),
   TZ: z.string().default('UTC'),
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().default('mailto:admin@example.com'),
   // Seeds for first-run settings only
   DRY_RUN: bool(true),
   AUTO_PUBLISH: bool(false),

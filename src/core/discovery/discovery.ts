@@ -3,6 +3,7 @@ import { AiAgent } from '../ai/agent';
 import { recordError, type Settings } from '../settings';
 import { XError, type XClient, type XPost } from '../x/types';
 import { BudgetExceededError } from '../ai/cost';
+import { notifyOnce } from '../push';
 
 async function markAccount(x: XClient) {
   try {
@@ -10,7 +11,9 @@ async function markAccount(x: XClient) {
     await q(`UPDATE account SET status='connected', username=$1, checked_at=now(), detail=NULL`, [u.username]);
   } catch (e) {
     const kind = e instanceof XError ? e.kind : 'unknown';
-    await q(`UPDATE account SET status=$1, checked_at=now(), detail=$2`, [kind === 'auth' ? 'expired' : 'error', (e instanceof Error ? e.message : 'error').slice(0, 300)]);
+    const status = kind === 'auth' ? 'expired' : 'error';
+    await q(`UPDATE account SET status=$1, checked_at=now(), detail=$2`, [status, (e instanceof Error ? e.message : 'error').slice(0, 300)]);
+    await notifyOnce(`account:${status}:${new Date().toISOString().slice(0, 10)}`, { title: status === 'expired' ? 'X session expired' : 'X account error', body: status === 'expired' ? 'Update X_API_KEY and restart the worker.' : 'The X connection check failed.', tag: 'account', url: '/settings' });
     throw e;
   }
 }
