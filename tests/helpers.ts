@@ -19,7 +19,7 @@ export const teardown = () => closePool();
 export async function withSettings(patch: Partial<Settings> = {}) {
   return saveSettings({ ...defaultSettings(), minActionSpacingSec: 5, ...patch });
 }
-export const setSpacingZero = () => q(`UPDATE actions SET created_at = created_at - interval '1 hour'`);
+export const setSpacingZero = () => q(`UPDATE actions SET created_at = created_at - interval '10 seconds'`);
 
 /** Scripted LLM: returns queued responses in order and counts calls. */
 export class MockLlm implements LlmClient {

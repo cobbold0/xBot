@@ -15,7 +15,7 @@ open http://localhost:3007      # log in with DASHBOARD_PASSWORD
 Without Docker: `npm ci && npm run migrate && npm run worker` and `npm run dev` in a second shell (needs a Postgres `DATABASE_URL`).
 
 ## Processes
-- **web** (Next.js): dashboard + API. Auth = password → signed HttpOnly cookie.
+- **web** (Next.js + Mantine): mobile-first installable PWA dashboard (bottom dock on phones, sidebar on desktop; Home, Drafts, Activity, Usage, Settings) with web-push notifications. Auth = password → signed HttpOnly cookie.
 - **worker**: independent loop; jobs `account`, `discover` (fetch+analyze+reply drafts), `engage`, `generate`, `publish`. Postgres-backed scheduler with lock/expiry recovery. Health: `:3001/healthz`.
 - **db**: Postgres 16 with volume. Migrations in `migrations/` run by the `migrate` service (and the worker on start).
 

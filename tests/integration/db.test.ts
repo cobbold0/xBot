@@ -325,11 +325,11 @@ describe.skipIf(!HAS_DB)('workflows (real Postgres, mocked X + Anthropic)', () =
       const sched = new Scheduler(buildJobs({ x: () => x, llm: () => llm }).filter((j) => j.name !== 'account'));
       await sched.init();
       await sched.tick();
-      await q(`UPDATE actions SET created_at = created_at - interval '1 hour'`);
+      await q(`UPDATE actions SET created_at = created_at - interval '10 seconds'`);
       await q(`UPDATE jobs SET next_run_at = now()`);
       await sched.tick();
       await q(`UPDATE drafts SET scheduled_for = now() - interval '1 minute'`);
-      await q(`UPDATE actions SET created_at = created_at - interval '1 hour'`);
+      await q(`UPDATE actions SET created_at = created_at - interval '10 seconds'`);
       await q(`UPDATE jobs SET next_run_at = now()`);
       await sched.tick();
       const types = x.written.map((w) => w.type).sort();

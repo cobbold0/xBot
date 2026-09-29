@@ -19,3 +19,8 @@ Create a key at console.anthropic.com → `ANTHROPIC_API_KEY`. Check current pri
 
 ## 5. First run
 Start the stack, log in, open Settings: add `topics`, `searchTerms` and/or `accounts`, adjust `voice`. Leave `dryRun` on. Watch Activity/Drafts, then follow docs/E2E_CHECKLIST.md.
+
+## 6. Install the app & notifications (PWA)
+- Open the dashboard over **HTTPS** in your phone browser and choose *Add to Home Screen* / *Install app*. On iPhone/iPad (iOS 16.4+) push works only from the installed Home Screen app.
+- Generate VAPID keys once: `npm run vapid`, then set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (a `mailto:` you own) on the server and redeploy. Keep the private key secret.
+- In the app: Settings → Notifications → *Enable on this device* → *Send test*. You get alerts for new drafts/reply drafts, published posts, failed actions, expired X session and reached AI budgets (each failure/budget/session alert at most once per day).

@@ -3,6 +3,7 @@ import { getControl, recordError, type Settings } from '../settings';
 import { startOfDay } from '../time';
 import { env } from '../config';
 import { XError, type XClient } from '../x/types';
+import { notifyOnce } from '../push';
 
 export type ActionType = 'post' | 'like' | 'repost' | 'reply';
 export interface ActionRequest { type: ActionType; targetXId?: string; draftId?: number; text?: string }
@@ -77,6 +78,7 @@ export class ActionExecutor {
       const xe = e instanceof XError ? e : new XError('unknown', e instanceof Error ? e.message : 'error');
       await finish('failed', `${xe.kind}: ${xe.message}`);
       await recordError('action:' + req.type, xe);
+      await notifyOnce(`fail:${req.type}:${day.toISOString().slice(0, 10)}`, { title: `xBot: ${req.type} failed`, body: `${xe.kind}: ${xe.message}`.slice(0, 140), tag: 'fail-' + req.type, url: '/activity' });
       if (xe.kind === 'auth') await q(`UPDATE account SET status='expired', checked_at=now(), detail=$1`, [xe.message.slice(0, 300)]);
       return { status: 'failed', detail: `${xe.kind}: ${xe.message}`, retryable: xe.kind === 'auth' || xe.kind === 'rate_limit' };
     }
