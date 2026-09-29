@@ -95,3 +95,16 @@ describe('X_API_KEY normalization', () => {
     expect(() => normalizeApiKey('auth_token=abc123;ct0=def456;')).not.toThrow(/abc123/);
   });
 });
+
+import { mapError } from '../../src/core/x/rettiwt';
+describe('X error mapping', () => {
+  it('treats rettiwt "reading errors" TypeError as a network problem, not expired cookies', () => {
+    const e = mapError(new TypeError("Cannot read properties of undefined (reading 'errors')"));
+    expect(e.kind).toBe('temporary');
+    expect(e.message).toMatch(/not a cookie problem/);
+  });
+  it('maps HTTP 401/403 to auth and 429 to rate_limit', () => {
+    expect(mapError(Object.assign(new Error('x'), { status: 403 })).kind).toBe('auth');
+    expect(mapError(Object.assign(new Error('x'), { status: 429 })).kind).toBe('rate_limit');
+  });
+});

@@ -6,6 +6,17 @@ import { useDash } from '@/components/dash';
 import { Empty, PageTitle } from '@/components/ui';
 import { fmtTime, relTime } from '@/web/client';
 
+/** Collapses identical source+message errors (newest first) into one row with a count. */
+function groupErrors<T extends { id: number; source: string; message: string; created_at: string }>(rows: T[]) {
+  const map = new Map<string, T & { count: number }>();
+  for (const r of rows) {
+    const k = `${r.source}\u0000${r.message}`;
+    const g = map.get(k);
+    if (g) g.count++; else map.set(k, { ...r, count: 1 });
+  }
+  return [...map.values()];
+}
+
 const ICON = { post: IconPencil, reply: IconMessageCircle, like: IconHeart, repost: IconRepeat } as const;
 const COLOR: Record<string, string> = { succeeded: 'teal', failed: 'red', dry_run: 'yellow', blocked: 'gray', attempted: 'blue' };
 
@@ -49,9 +60,12 @@ export default function Activity() {
         </Card>
       ))}
 
-      {tab === 'errors' && (data.errors.length === 0 ? <Empty>No errors. 🎉</Empty> : data.errors.map((e) => (
+      {tab === 'errors' && (data.errors.length === 0 ? <Empty>No errors. 🎉</Empty> : groupErrors(data.errors).map((e) => (
         <Card key={e.id} withBorder padding="sm">
-          <Group justify="space-between" wrap="nowrap"><Badge color="red" variant="light" style={{ textTransform: 'none' }}>{e.source}</Badge><Text size="xs" c="dimmed">{relTime(e.created_at)}</Text></Group>
+          <Group justify="space-between" wrap="nowrap">
+            <Group gap={6} wrap="nowrap"><Badge color="red" variant="light" style={{ textTransform: 'none' }}>{e.source}</Badge>{e.count > 1 && <Badge variant="outline" color="gray">×{e.count}</Badge>}</Group>
+            <Text size="xs" c="dimmed">{relTime(e.created_at)}</Text>
+          </Group>
           <Text size="sm" mt={6} style={{ wordBreak: 'break-word' }}>{e.message}</Text>
         </Card>
       )))}
