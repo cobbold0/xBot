@@ -32,18 +32,18 @@ export class AiAgent {
   async analyze(posts: XPost[]): Promise<Map<string, Analysis>> {
     const out = new Map<string, Analysis>();
     if (!posts.length) return out;
-    const data = await this.run('analyze', analysisPrompt(posts, this.settings), AnalysisBatchSchema, 300 * posts.length + 200);
+    const data = await this.run('analyze', analysisPrompt(posts, this.settings), AnalysisBatchSchema, 500 * posts.length + 500);
     const ids = new Set(posts.map((p) => p.id));
     for (const { id, ...a } of data.results) if (ids.has(id) && !out.has(id)) out.set(id, a);
     return out;
   }
 
   async generatePosts(count: number, recent: string[], inspiration: XPost[]) {
-    const data = await this.run('generate', generationPrompt(this.settings, recent, count, inspiration), GeneratedPostsSchema, 200 * count + 300);
+    const data = await this.run('generate', generationPrompt(this.settings, recent, count, inspiration), GeneratedPostsSchema, 1000 * count + 1000);
     return data.posts.slice(0, count);
   }
 
   async draftReply(post: XPost) {
-    return this.run('reply', replyPrompt(post, this.settings), ReplySchema, 400);
+    return this.run('reply', replyPrompt(post, this.settings), ReplySchema, 1000);
   }
 }

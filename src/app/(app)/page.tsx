@@ -1,14 +1,14 @@
 'use client';
 import Link from 'next/link';
-import { Alert, Anchor, Badge, Box, Group, Paper, Progress, RingProgress, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Alert, Anchor, Badge, Box, Button, Group, Paper, Progress, RingProgress, SimpleGrid, Stack, Text } from '@mantine/core';
 import { AreaChart, BarChart } from '@mantine/charts';
 import { IconAlertTriangle, IconFlask, IconLock, IconPlayerPause, IconShieldOff } from '@tabler/icons-react';
 import { useDash } from '@/components/dash';
 import { Empty, PageTitle, Section } from '@/components/ui';
-import { fmtTime, relTime } from '@/web/client';
+import { api, fmtTime, relTime } from '@/web/client';
 
 export default function Home() {
-  const { data } = useDash();
+  const { data, act } = useDash();
   const { control: c, settings: s, account: a, usage: u, today, posts, series } = data;
   const dayPct = s.dailyBudgetUsd > 0 ? Math.min(100, (u.dayUsd / s.dailyBudgetUsd) * 100) : 100;
   const review = data.drafts.filter((d) => d.status === 'draft');
@@ -78,13 +78,19 @@ export default function Home() {
       <Section title="Scheduled jobs">
         <Stack gap={6}>
           {data.jobs.map((j) => (
-            <Group key={j.name} justify="space-between" wrap="nowrap">
-              <Text size="sm" fw={500}>{j.name}</Text>
-              <Group gap="xs" wrap="nowrap">
-                <Badge size="sm" variant="light" color={j.last_status === 'error' ? 'red' : j.last_status === 'ok' ? 'teal' : 'gray'}>{j.last_status ?? 'pending'}</Badge>
-                <Text size="xs" c="dimmed" title={fmtTime(j.next_run_at)}>{relTime(j.next_run_at)}</Text>
+            <Box key={j.name}>
+              <Group justify="space-between" wrap="nowrap">
+                <Text size="sm" fw={500}>{j.name}</Text>
+                <Group gap="xs" wrap="nowrap">
+                  <Badge size="sm" variant="light" color={j.last_status === 'error' ? 'red' : j.last_status === 'ok' ? 'teal' : 'gray'}>{j.last_status ?? 'pending'}</Badge>
+                  <Text size="xs" c="dimmed" title={fmtTime(j.next_run_at)}>{relTime(j.next_run_at)}</Text>
+                  <Button size="compact-xs" variant="subtle" onClick={() => act(api('/api/jobs', 'POST', { name: j.name }), `${j.name} scheduled to run within 15s`)}>Run</Button>
+                </Group>
               </Group>
-            </Group>
+              {j.last_status === 'error' && j.last_error && (
+                <Text size="xs" c="red" mt={2}>{j.last_error}</Text>
+              )}
+            </Box>
           ))}
         </Stack>
       </Section>
