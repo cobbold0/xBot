@@ -10,6 +10,7 @@ import type { JobDef } from './scheduler/scheduler';
 import type { XClient } from './x/types';
 import { log } from './log';
 import { notify, notifyOnce } from './push';
+import { getTenantId } from './tenant';
 
 export interface Deps { x: () => XClient; llm: () => LlmClient }
 
@@ -43,7 +44,8 @@ export function buildJobs(d: Deps): JobDef[] {
     {
       name: 'generate', intervalSec: (s) => s.generateIntervalMin * 60,
       run: async (s) => {
-        const day = await (await import('./db/pool')).q<{ n: string }>(`SELECT count(*) n FROM drafts WHERE kind='post' AND status IN ('draft','approved')`);
+        const userId = getTenantId();
+        const day = await (await import('./db/pool')).q<{ n: string }>(`SELECT count(*) n FROM drafts WHERE user_id = $1 AND kind='post' AND status IN ('draft','approved')`, [userId]);
         if (Number(day.rows[0].n) >= 10) return; // don't pile up unreviewed drafts
         try {
           const ids = await generateDrafts(ai(s), s, 2);

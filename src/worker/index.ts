@@ -10,24 +10,43 @@ import { createXClient } from '../core/x/rettiwt';
 import { getStoredApiKey } from '../core/x/credentials';
 import { XError, type XClient } from '../core/x/types';
 import type { LlmClient } from '../core/ai/llm';
+import { DEFAULT_TENANT_ID, getTenantId, listTenantIds } from '../core/tenant';
 
 const TICK_MS = 15_000;
 
 async function main() {
   env();
   await migrate();
-  let x: XClient | undefined;
-  let xKey: string | null | undefined;
+  const xClients = new Map<string, { key: string; client: XClient }>();
   let llm: LlmClient | undefined;
-  /** Credentials saved in the dashboard take precedence over X_API_KEY; picked up without a restart. */
+
+  /** Syncs per-tenant X credentials stored in the dashboard (or fallback X_API_KEY). */
   const syncX = async () => {
-    const key = (await getStoredApiKey()) ?? process.env.X_API_KEY ?? null;
-    if (key === xKey) return;
-    xKey = key;
-    try { x = key ? createXClient(key) : undefined; } catch (e) { x = undefined; log.warn('X credentials are invalid', e); }
+    const tenants = await listTenantIds();
+    for (const userId of tenants) {
+      const key = (await getStoredApiKey(userId)) ?? (userId === DEFAULT_TENANT_ID || tenants.length === 1 ? process.env.X_API_KEY ?? null : null);
+      const prev = xClients.get(userId);
+      if (!key) {
+        xClients.delete(userId);
+        continue;
+      }
+      if (prev?.key === key) continue;
+      try {
+        xClients.set(userId, { key, client: createXClient(key) });
+      } catch (e) {
+        xClients.delete(userId);
+        log.warn(`X credentials are invalid for tenant ${userId}`, e);
+      }
+    }
   };
+
   const sched = new Scheduler(buildJobs({
-    x: () => { if (!x) throw new XError('auth', 'No valid X credentials configured'); return x; },
+    x: () => {
+      const userId = getTenantId();
+      const entry = xClients.get(userId);
+      if (!entry) throw new XError('auth', 'No valid X credentials configured');
+      return entry.client;
+    },
     llm: () => (llm ??= createLlm()),
   }));
   await sched.init();

@@ -2,6 +2,7 @@ import webpush from 'web-push';
 import { env } from './config';
 import { q } from './db/pool';
 import { log } from './log';
+import { getTenantId, settingKey } from './tenant';
 
 export interface PushPayload { title: string; body: string; tag?: string; url?: string }
 
@@ -10,12 +11,12 @@ export function pushConfigured(): boolean {
   return !!(e.VAPID_PUBLIC_KEY && e.VAPID_PRIVATE_KEY);
 }
 
-/** Sends to every subscribed device. Never throws; dead subscriptions (404/410) are removed. Returns delivered count. */
-export async function notify(p: PushPayload): Promise<number> {
+/** Sends to every subscribed device for the current tenant. Never throws; dead subscriptions (404/410) are removed. */
+export async function notify(p: PushPayload, userId = getTenantId()): Promise<number> {
   if (!pushConfigured()) return 0;
   const e = env();
   try {
-    const { rows } = await q<{ endpoint: string; p256dh: string; auth: string }>('SELECT endpoint, p256dh, auth FROM push_subscriptions');
+    const { rows } = await q<{ endpoint: string; p256dh: string; auth: string }>('SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = $1', [userId]);
     let sent = 0;
     await Promise.all(rows.map(async (r) => {
       try {
@@ -35,10 +36,10 @@ export async function notify(p: PushPayload): Promise<number> {
   }
 }
 
-/** Notifies at most once per key (e.g. one budget alert per day). */
-export async function notifyOnce(key: string, p: PushPayload): Promise<boolean> {
-  const r = await q(`INSERT INTO settings(key, value) VALUES ($1, 'true') ON CONFLICT (key) DO NOTHING`, ['notified:' + key]);
+/** Notifies at most once per key for the current tenant (e.g. one budget alert per day). */
+export async function notifyOnce(key: string, p: PushPayload, userId = getTenantId()): Promise<boolean> {
+  const r = await q(`INSERT INTO settings(key, value) VALUES ($1, 'true') ON CONFLICT (key) DO NOTHING`, [settingKey('notified:' + key, userId)]);
   if (!r.rowCount) return false;
-  await notify(p);
+  await notify(p, userId);
   return true;
 }

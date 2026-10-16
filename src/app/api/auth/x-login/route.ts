@@ -7,6 +7,7 @@ import { q } from '@/core/db/pool';
 import { saveApiKey } from '@/core/x/credentials';
 import { normalizeApiKey, RettiwtClient } from '@/core/x/rettiwt';
 import { XError } from '@/core/x/types';
+import { ensureTenantInitialized } from '@/core/tenant';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,8 +42,14 @@ export async function findOrCreateXUser(authToken: string, ct0: string, twid: st
     },
   });
 
-  await saveApiKey(raw);
-  await q(`UPDATE account SET status='connected', username=$1, checked_at=now(), detail=NULL`, [xUsername]);
+  await ensureTenantInitialized(user.id);
+  await saveApiKey(raw, user.id);
+  await q(
+    `INSERT INTO account(id, user_id, status, username, checked_at, detail)
+     VALUES (true, $1, 'connected', $2, now(), NULL)
+     ON CONFLICT (user_id) DO UPDATE SET status='connected', username=$2, checked_at=now(), detail=NULL`,
+    [user.id, xUsername],
+  );
   return user;
 }
 

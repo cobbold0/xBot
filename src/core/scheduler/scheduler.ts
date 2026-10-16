@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { q } from '../db/pool';
 import { redact } from '../log';
-import { getControl, getSettings, recordError, type Settings } from '../settings';
+import { defaultSettings, getControl, getSettings, recordError, type Settings } from '../settings';
+import { listTenantIds, runWithTenant } from '../tenant';
 
 export interface JobDef {
   name: string;
@@ -46,25 +47,46 @@ export class Scheduler {
     );
   }
 
-  /** Runs every currently-due job once. Returns the names executed. */
+  /** Runs every currently-due job once across all active tenants. Returns the job names executed. */
   async tick(): Promise<string[]> {
     this.lastTickAt = Date.now();
     const ran: string[] = [];
     for (let i = 0; i < this.jobs.length; i++) {
       const job = await this.claim();
       if (!job) break;
-      const s = await getSettings();
-      const c = await getControl();
-      if (c.emergencyStop || (c.paused && !job.runWhilePaused)) {
-        await this.release(job, s, 'skipped', c.emergencyStop ? 'emergency stop' : 'paused');
+      const tenants = await listTenantIds();
+      let lastSettings: Settings = defaultSettings();
+      let anyRan = false;
+      let anyError: string | undefined;
+      let skipReason: string | undefined;
+
+      for (const userId of tenants) {
+        await runWithTenant(userId, async () => {
+          const s = await getSettings(userId);
+          lastSettings = s;
+          const c = await getControl(userId);
+          if (c.emergencyStop || (c.paused && !job.runWhilePaused)) {
+            skipReason = c.emergencyStop ? 'emergency stop' : 'paused';
+            return;
+          }
+          anyRan = true;
+          try {
+            await job.run(s);
+          } catch (e) {
+            await recordError('job:' + job.name, e, userId);
+            anyError = e instanceof Error ? e.message : 'error';
+          }
+        });
+      }
+
+      if (!anyRan && skipReason) {
+        await this.release(job, lastSettings, 'skipped', skipReason);
         continue;
       }
-      try {
-        await job.run(s);
-        await this.release(job, s, 'ok');
-      } catch (e) {
-        await recordError('job:' + job.name, e);
-        await this.release(job, s, 'error', e instanceof Error ? e.message : 'error');
+      if (anyError) {
+        await this.release(job, lastSettings, 'error', anyError);
+      } else {
+        await this.release(job, lastSettings, 'ok');
       }
       ran.push(job.name);
     }

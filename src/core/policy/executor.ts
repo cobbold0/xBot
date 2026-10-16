@@ -4,6 +4,7 @@ import { startOfDay } from '../time';
 import { env } from '../config';
 import { XError, type XClient } from '../x/types';
 import { notifyOnce } from '../push';
+import { getTenantId } from '../tenant';
 
 export type ActionType = 'post' | 'like' | 'repost' | 'reply';
 export interface ActionRequest { type: ActionType; targetXId?: string; draftId?: number; text?: string }
@@ -24,7 +25,8 @@ export class ActionExecutor {
   constructor(private x: () => XClient, private settings: Settings, private tz = env().TZ) {}
 
   private async log(req: ActionRequest, status: string, detail: string, resultXId?: string) {
-    await q('INSERT INTO actions(type, target_x_id, draft_id, status, detail, result_x_id) VALUES ($1,$2,$3,$4,$5,$6)', [req.type, req.targetXId ?? null, req.draftId ?? null, status, detail, resultXId ?? null]);
+    const userId = getTenantId();
+    await q('INSERT INTO actions(user_id, type, target_x_id, draft_id, status, detail, result_x_id) VALUES ($1,$2,$3,$4,$5,$6,$7)', [userId, req.type, req.targetXId ?? null, req.draftId ?? null, status, detail, resultXId ?? null]);
   }
   private async blocked(req: ActionRequest, detail: string, retryable = true): Promise<ActionOutcome> {
     await this.log(req, 'blocked', detail);
@@ -32,8 +34,9 @@ export class ActionExecutor {
   }
 
   async execute(req: ActionRequest): Promise<ActionOutcome> {
+    const userId = getTenantId();
     const s = this.settings;
-    const c = await getControl();
+    const c = await getControl(userId);
     if (c.emergencyStop) return this.blocked(req, 'emergency stop is active');
     if (c.paused) return this.blocked(req, 'bot is paused');
     if (!ENABLED[req.type](s)) return this.blocked(req, `${req.type} actions are not enabled`);
@@ -48,16 +51,16 @@ export class ActionExecutor {
 
     const cap = Number(s[CAPS[req.type]]);
     const day = startOfDay(this.tz);
-    const used = await q<{ n: string }>(`SELECT count(*) n FROM actions WHERE type = $1 AND status IN ('attempted','succeeded') AND created_at >= $2`, [req.type, day]);
+    const used = await q<{ n: string }>(`SELECT count(*) n FROM actions WHERE user_id = $1 AND type = $2 AND status IN ('attempted','succeeded') AND created_at >= $3`, [userId, req.type, day]);
     if (Number(used.rows[0].n) >= cap) return this.blocked(req, `daily cap reached (${cap})`);
 
-    const last = await q<{ t: Date }>(`SELECT max(created_at) t FROM actions WHERE status IN ('attempted','succeeded')`);
+    const last = await q<{ t: Date }>(`SELECT max(created_at) t FROM actions WHERE user_id = $1 AND status IN ('attempted','succeeded')`, [userId]);
     if (last.rows[0].t && Date.now() - last.rows[0].t.getTime() < s.minActionSpacingSec * 1000) return this.blocked(req, 'minimum spacing between actions not elapsed');
 
     // Record the attempt first: the partial unique index makes like/repost idempotent across restarts.
     let attemptId: number;
     try {
-      const r = await q<{ id: number }>(`INSERT INTO actions(type, target_x_id, draft_id, status, detail) VALUES ($1,$2,$3,'attempted','sending') RETURNING id`, [req.type, req.targetXId ?? null, req.draftId ?? null]);
+      const r = await q<{ id: number }>(`INSERT INTO actions(user_id, type, target_x_id, draft_id, status, detail) VALUES ($1,$2,$3,$4,'attempted','sending') RETURNING id`, [userId, req.type, req.targetXId ?? null, req.draftId ?? null]);
       attemptId = r.rows[0].id;
     } catch (e: any) {
       if (e?.code === '23505') return { status: 'blocked', detail: 'already performed on this post', retryable: false };
@@ -77,9 +80,16 @@ export class ActionExecutor {
     } catch (e) {
       const xe = e instanceof XError ? e : new XError('unknown', e instanceof Error ? e.message : 'error');
       await finish('failed', `${xe.kind}: ${xe.message}`);
-      await recordError('action:' + req.type, xe);
-      await notifyOnce(`fail:${req.type}:${day.toISOString().slice(0, 10)}`, { title: `xBot: ${req.type} failed`, body: `${xe.kind}: ${xe.message}`.slice(0, 140), tag: 'fail-' + req.type, url: '/activity' });
-      if (xe.kind === 'auth') await q(`UPDATE account SET status='expired', checked_at=now(), detail=$1`, [xe.message.slice(0, 300)]);
+      await recordError('action:' + req.type, xe, userId);
+      await notifyOnce(`fail:${req.type}:${day.toISOString().slice(0, 10)}`, { title: `JustBot: ${req.type} failed`, body: `${xe.kind}: ${xe.message}`.slice(0, 140), tag: 'fail-' + req.type, url: '/activity' }, userId);
+      if (xe.kind === 'auth') {
+        await q(
+          `INSERT INTO account(id, user_id, status, checked_at, detail)
+           VALUES (true, $1, 'expired', now(), $2)
+           ON CONFLICT (user_id) DO UPDATE SET status='expired', checked_at=now(), detail=$2`,
+          [userId, xe.message.slice(0, 300)],
+        );
+      }
       return { status: 'failed', detail: `${xe.kind}: ${xe.message}`, retryable: xe.kind === 'auth' || xe.kind === 'rate_limit' };
     }
   }

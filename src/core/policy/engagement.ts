@@ -1,6 +1,7 @@
 import { q } from '../db/pool';
 import type { Settings } from '../settings';
 import { ActionExecutor, type ActionType } from './executor';
+import { getTenantId } from '../tenant';
 
 export interface Candidate { x_id: string; analysis: { relevance: number; quality: number; engagementSuitable: boolean; suggestedAction: string; injectionSuspected: boolean } }
 
@@ -17,10 +18,13 @@ export function decideEngagement(c: Candidate, s: Settings): ActionType | null {
 
 export async function runEngagement(exec: ActionExecutor, s: Settings): Promise<number> {
   if (!s.autoLike && !s.autoRepost) return 0;
+  const userId = getTenantId();
   const { rows } = await q<Candidate>(
-    `SELECT x_id, analysis FROM posts p WHERE status='analyzed' AND analysis->>'suggestedAction' IN ('like','repost')
-       AND NOT EXISTS (SELECT 1 FROM actions a WHERE a.target_x_id = p.x_id AND a.type IN ('like','repost') AND a.status IN ('attempted','succeeded','dry_run','failed'))
-     ORDER BY first_seen_at DESC LIMIT 20`);
+    `SELECT x_id, analysis FROM posts p WHERE p.user_id = $1 AND status='analyzed' AND analysis->>'suggestedAction' IN ('like','repost')
+       AND NOT EXISTS (SELECT 1 FROM actions a WHERE a.user_id = $1 AND a.target_x_id = p.x_id AND a.type IN ('like','repost') AND a.status IN ('attempted','succeeded','dry_run','failed'))
+     ORDER BY first_seen_at DESC LIMIT 20`,
+    [userId],
+  );
   let done = 0;
   for (const c of rows) {
     const type = decideEngagement(c, s);

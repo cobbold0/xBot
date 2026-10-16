@@ -93,3 +93,135 @@ model Setting {
 
   @@map("settings")
 }
+
+model ControlState {
+  userId        String   @id @default("default") @map("user_id")
+  id            Boolean  @default(true)
+  paused        Boolean  @default(false)
+  emergencyStop Boolean  @default(false) @map("emergency_stop")
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("control")
+}
+
+model AccountStatus {
+  userId    String    @id @default("default") @map("user_id")
+  id        Boolean   @default(true)
+  status    String    @default("unknown")
+  username  String?
+  checkedAt DateTime? @map("checked_at") @db.Timestamptz(6)
+  detail    String?
+
+  @@map("account")
+}
+
+model Post {
+  id               BigInt   @id @default(autoincrement())
+  userId           String   @default("default") @map("user_id")
+  xId              String   @map("x_id")
+  authorId         String?  @map("author_id")
+  authorHandle     String?  @map("author_handle")
+  text             String
+  metadata         Json     @default("{}")
+  source           String
+  analysis         Json?
+  status           String   @default("new")
+  analysisAttempts Int      @default(0) @map("analysis_attempts")
+  firstSeenAt      DateTime @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+
+  @@unique([userId, xId], map: "posts_user_x_id_idx")
+  @@index([userId, status, firstSeenAt], map: "posts_user_status_idx")
+  @@map("posts")
+}
+
+model Draft {
+  id           BigInt    @id @default(autoincrement())
+  userId       String    @default("default") @map("user_id")
+  kind         String
+  text         String
+  textHash     String    @map("text_hash")
+  status       String    @default("draft")
+  scheduledFor DateTime? @map("scheduled_for") @db.Timestamptz(6)
+  replyToXId   String?   @map("reply_to_x_id")
+  xId          String?   @map("x_id")
+  topic        String?
+  rationale    String?
+  mediaType    String?   @default("image") @map("media_type")
+  mediaPrompt  String?   @map("media_prompt")
+  error        String?
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  publishedAt  DateTime? @map("published_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  actions      Action[]
+
+  @@index([userId, status, scheduledFor], map: "drafts_user_status_idx")
+  @@map("drafts")
+}
+
+model Action {
+  id        BigInt   @id @default(autoincrement())
+  userId    String   @default("default") @map("user_id")
+  type      String
+  targetXId String?  @map("target_x_id")
+  draftId   BigInt?  @map("draft_id")
+  status    String
+  detail    String?
+  resultXId String?  @map("result_x_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  draft     Draft?   @relation(fields: [draftId], references: [id])
+
+  @@index([userId, type, createdAt], map: "actions_user_type_time_idx")
+  @@map("actions")
+}
+
+model AiUsage {
+  id           BigInt   @id @default(autoincrement())
+  userId       String   @default("default") @map("user_id")
+  purpose      String
+  model        String
+  inputTokens  Int      @map("input_tokens")
+  outputTokens Int      @map("output_tokens")
+  costUsd      Decimal  @map("cost_usd") @db.Decimal(12, 6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, createdAt], map: "ai_usage_user_time_idx")
+  @@map("ai_usage")
+}
+
+model ErrorLog {
+  id        BigInt   @id @default(autoincrement())
+  userId    String   @default("default") @map("user_id")
+  source    String
+  message   String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, id(sort: Desc)], map: "errors_user_id_idx")
+  @@map("errors")
+}
+
+model Job {
+  name           String    @id
+  nextRunAt      DateTime  @default(now()) @map("next_run_at") @db.Timestamptz(6)
+  lockedUntil    DateTime? @map("locked_until") @db.Timestamptz(6)
+  lockedBy       String?   @map("locked_by")
+  lastStartedAt  DateTime? @map("last_started_at") @db.Timestamptz(6)
+  lastFinishedAt DateTime? @map("last_finished_at") @db.Timestamptz(6)
+  lastStatus     String?   @map("last_status")
+  lastError      String?   @map("last_error")
+
+  @@map("jobs")
+}
+
+model PushSubscription {
+  endpoint  String   @id
+  userId    String   @default("default") @map("user_id")
+  p256dh    String
+  auth      String
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId], map: "push_subscriptions_user_idx")
+  @@map("push_subscriptions")
+}
