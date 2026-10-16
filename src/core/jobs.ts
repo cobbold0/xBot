@@ -28,7 +28,10 @@ export function buildJobs(d: Deps): JobDef[] {
     {
       name: 'discover', intervalSec: (s) => s.pollIntervalMin * 60,
       run: async (s) => {
-        await discover(d.x(), s);
+        let xClient: XClient | undefined;
+        try { xClient = d.x(); } catch { xClient = undefined; }
+        const isMockX = xClient && 'posts' in (xClient as any);
+        await discover(xClient, s, !isMockX);
         try {
           await analyzePending(ai(s), s);
           const n = await draftReplies(ai(s), s);
@@ -44,7 +47,7 @@ export function buildJobs(d: Deps): JobDef[] {
         if (Number(day.rows[0].n) >= 10) return; // don't pile up unreviewed drafts
         try {
           const ids = await generateDrafts(ai(s), s, 2);
-          if (ids.length && !s.autoPublish) await notify({ title: `${ids.length} new draft${ids.length > 1 ? 's' : ''} to review`, body: 'Open xBot to approve or reject.', tag: 'drafts', url: '/drafts' });
+          if (ids.length && !s.autoPublish) await notify({ title: `${ids.length} new draft${ids.length > 1 ? 's' : ''} to review`, body: 'Open JustBot to approve or reject.', tag: 'drafts', url: '/drafts' });
         } catch (e) { swallowBudget('generate')(e); }
       },
     },

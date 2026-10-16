@@ -72,6 +72,12 @@ function DraftCard({ d, max }: { d: Draft; max: number }) {
           : <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{d.text}</Text>}
         {d.kind === 'reply' && d.reply_to_x_id && <Text size="xs" c="dimmed">Replying to <a href={`https://x.com/i/web/status/${d.reply_to_x_id}`} target="_blank" rel="noreferrer">this post</a></Text>}
         {d.rationale && <Text size="xs" c="dimmed">Why: {d.rationale}</Text>}
+        {d.media_prompt && d.media_type && d.media_type !== 'none' && (
+          <Group gap="xs" align="flex-start" wrap="nowrap">
+            <Badge size="xs" variant="light" color={d.media_type === 'video' ? 'grape' : 'cyan'}>Suggested {d.media_type}</Badge>
+            <Text size="xs" c="dimmed" style={{ flex: 1 }}>{d.media_prompt}</Text>
+          </Group>
+        )}
         {d.error && <Text size="xs" c="red">{d.error}</Text>}
         {d.x_id && <Text size="xs"><a href={`https://x.com/i/web/status/${d.x_id}`} target="_blank" rel="noreferrer">View on X</a></Text>}
         <Group justify="space-between" wrap="nowrap">

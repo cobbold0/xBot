@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'xBot', short_name: 'xBot', description: 'Self-hosted X agent dashboard',
+    name: 'JustBot', short_name: 'JustBot', description: 'Autonomous trending news & X social agent',
     start_url: '/', scope: '/', display: 'standalone', orientation: 'portrait',
     background_color: '#101113', theme_color: '#101113',
     icons: [

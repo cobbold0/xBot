@@ -19,13 +19,22 @@ async function markAccount(x: XClient) {
 }
 export const verifyAccount = markAccount;
 
-/** Fetches from configured sources and stores unseen posts (dedupe on x_id) up to the per-run cap. Returns count stored. */
-export async function discover(x: XClient, s: Settings): Promise<number> {
+import { fetchGoogleNews, fetchRedditTrends } from './trends';
+
+/** Fetches from configured sources (X, Google News, Reddit) and stores unseen posts (dedupe on x_id) up to the per-run cap. Returns count stored. */
+export async function discover(x: XClient | undefined, s: Settings, externalTrends = false): Promise<number> {
   let remaining = s.maxPostsProcessedPerRun;
   let stored = 0;
+  const queries = [...new Set([...s.searchTerms, ...s.accounts, ...s.topics])].slice(0, 10);
   const sources: { label: string; fetch: () => Promise<XPost[]> }[] = [
-    ...s.searchTerms.map((t) => ({ label: `search:${t}`, fetch: () => x.search({ terms: t, count: 20 }) })),
-    ...s.accounts.map((a) => ({ label: `account:${a}`, fetch: () => x.userPosts(a, 20) })),
+    ...(x ? [
+      ...s.searchTerms.map((t) => ({ label: `search:${t}`, fetch: () => x.search({ terms: t, count: 20 }) })),
+      ...s.accounts.map((a) => ({ label: `account:${a}`, fetch: () => x.userPosts(a, 20) })),
+    ] : []),
+    ...(externalTrends ? [
+      ...queries.map((qStr) => ({ label: `gnews:${qStr}`, fetch: () => fetchGoogleNews(qStr, 6) })),
+      ...queries.map((qStr) => ({ label: `reddit:${qStr}`, fetch: () => fetchRedditTrends(qStr, 6) })),
+    ] : []),
   ];
   for (const src of sources) {
     if (remaining <= 0) break;
@@ -81,7 +90,7 @@ export async function analyzePending(ai: AiAgent, s: Settings): Promise<number> 
   return done;
 }
 
-/** Creates reply drafts (for human review only) for analyzed posts the model flagged and thresholds accept. */
+/** Creates reply drafts (for human review only) for analyzed X posts the model flagged and thresholds accept. */
 export async function draftReplies(ai: AiAgent, s: Settings, max = 3): Promise<number> {
   if (s.maxRepliesPerDay <= 0) return 0;
   const pending = await q<{ n: string }>(`SELECT count(*) n FROM drafts WHERE kind='reply' AND status='draft'`);
@@ -89,6 +98,7 @@ export async function draftReplies(ai: AiAgent, s: Settings, max = 3): Promise<n
   if (room <= 0) return 0;
   const { rows } = await q<PostRow>(
     `SELECT x_id, text, author_id, author_handle, metadata FROM posts p WHERE status='analyzed'
+       AND p.x_id NOT LIKE 'gnews_%' AND p.x_id NOT LIKE 'reddit_%'
        AND analysis->>'suggestedAction' = 'reply_draft' AND (analysis->>'injectionSuspected')::boolean = false
        AND (analysis->>'relevance')::int >= $1 AND (analysis->>'quality')::int >= $2
        AND NOT EXISTS (SELECT 1 FROM drafts d WHERE d.kind='reply' AND d.reply_to_x_id = p.x_id)

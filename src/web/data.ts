@@ -14,7 +14,7 @@ export async function getDashboardData() {
     getSettings(),
     q(`SELECT status, username, checked_at, detail FROM account`),
     q(`SELECT name, next_run_at, last_finished_at, last_status, last_error FROM jobs ORDER BY name`),
-    q(`SELECT id::int, kind, text, status, scheduled_for, reply_to_x_id, x_id, topic, rationale, error, created_at FROM drafts ORDER BY id DESC LIMIT 80`),
+    q(`SELECT id::int, kind, text, status, scheduled_for, reply_to_x_id, x_id, topic, rationale, media_type, media_prompt, error, created_at FROM drafts ORDER BY id DESC LIMIT 80`),
     q(`SELECT id::int, type, target_x_id, status, detail, result_x_id, created_at FROM actions ORDER BY id DESC LIMIT 100`),
     q(`SELECT id::int, source, message, created_at FROM errors ORDER BY id DESC LIMIT 30`),
     usageSummary(),

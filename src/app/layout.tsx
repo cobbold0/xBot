@@ -8,10 +8,10 @@ import '@mantine/dates/styles.css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'xBot',
+  title: 'JustBot',
   robots: { index: false, follow: false },
-  applicationName: 'xBot',
-  appleWebApp: { capable: true, title: 'xBot', statusBarStyle: 'black-translucent' },
+  applicationName: 'JustBot',
+  appleWebApp: { capable: true, title: 'JustBot', statusBarStyle: 'black-translucent' },
   icons: { icon: '/icons/192', apple: '/icons/180' },
 };
 export const viewport: Viewport = {

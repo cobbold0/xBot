@@ -6,6 +6,7 @@ export interface Candidate { x_id: string; analysis: { relevance: number; qualit
 
 /** Pure policy: which action (if any) the agent may take on an analyzed post. */
 export function decideEngagement(c: Candidate, s: Settings): ActionType | null {
+  if (c.x_id.startsWith('gnews_') || c.x_id.startsWith('reddit_')) return null;
   const a = c.analysis;
   if (a.injectionSuspected || !a.engagementSuitable) return null;
   if (a.relevance < s.minRelevance || a.quality < s.minQuality) return null;

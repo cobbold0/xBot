@@ -33,8 +33,8 @@ export function generationPrompt(s: Settings, recent: string[], count: number, i
   ].filter(Boolean).join(' ');
   return {
     system: `You write original X posts for the account owner's trending news & social feed. Voice: ${s.voice}
-${focus} Each post must be at most ${s.maxPostChars} characters, original, non-spammy, no fabricated facts or quotes, no @mentions of others. Synthesize what is currently trending from the scraped posts below into engaging, original posts without copying verbatim. ${SECURITY}
-Output: {"posts":[{"text":string,"topic":string,"rationale":string}]} with exactly ${count} posts. Do not repeat or closely paraphrase the recent posts listed.`,
+${focus} Each post must be at most ${s.maxPostChars} characters, original, non-spammy, no fabricated facts or quotes, no @mentions of others. Synthesize what is currently trending from the scraped posts (X, Google News, Reddit) below into engaging, original posts without copying verbatim. Also suggest the best visual (image or short video) and a ready-to-use AI generation/search prompt for it. ${SECURITY}
+Output: {"posts":[{"text":string,"topic":string,"rationale":string,"mediaType":"image"|"video"|"none","mediaPrompt":string}]} with exactly ${count} posts. Do not repeat or closely paraphrase the recent posts listed.`,
     user: `Recent posts to avoid repeating:\n${recent.slice(0, 30).map((t) => `- ${t.replace(/\s+/g, ' ').slice(0, 200)}`).join('\n') || '(none)'}\n\nTrending scraped posts (sorted by engagement; synthesize key news/trends without copying verbatim):\n${inspiration.slice(0, 8).map(wrapPost).join('\n') || '(none)'}`,
   };
 }

@@ -12,7 +12,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ size: stri
   return new ImageResponse(
     (
       <div style={{ width: px, height: px, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#101113', borderRadius: maskable ? 0 : Math.round(px * 0.22) }}>
-        <div style={{ width: glyph, height: glyph, borderRadius: Math.round(glyph * 0.28), background: '#4c6ef5', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(glyph * 0.72), fontWeight: 800 }}>x</div>
+        <div style={{ width: glyph, height: glyph, borderRadius: Math.round(glyph * 0.28), background: '#4c6ef5', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(glyph * 0.72), fontWeight: 800 }}>J</div>
       </div>
     ),
     { width: px, height: px },

@@ -16,7 +16,13 @@ export const AnalysisBatchSchema = z.object({
 });
 
 export const GeneratedPostsSchema = z.object({
-  posts: z.array(z.object({ text: z.string().min(1).max(1000), topic: z.string().max(80), rationale: z.string().max(300) })).max(10),
+  posts: z.array(z.object({
+    text: z.string().min(1).max(1000),
+    topic: z.string().max(80),
+    rationale: z.string().max(300),
+    mediaType: z.enum(['none', 'image', 'video']).optional().default('image'),
+    mediaPrompt: z.string().max(500).optional().default(''),
+  })).max(10),
 });
 
 export const ReplySchema = z.object({ text: z.string().min(1).max(1000), rationale: z.string().max(300) });

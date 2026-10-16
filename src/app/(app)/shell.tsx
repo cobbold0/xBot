@@ -44,7 +44,7 @@ function Frame({ children }: { children: ReactNode }) {
       <AppShell.Header px="md">
         <Group h="100%" justify="space-between" wrap="nowrap">
           <Group gap="xs" wrap="nowrap">
-            <Text fw={800} size="lg">xBot</Text>
+            <Text fw={800} size="lg">JustBot</Text>
             <Badge variant="light" color={a.status === 'connected' ? 'teal' : 'red'} size="sm" style={{ textTransform: 'none' }}>{a.status === 'connected' && a.username ? `@${a.username}` : a.status}</Badge>
             {offline && <IconWifiOff size={16} color="var(--mantine-color-red-6)" aria-label="offline" />}
           </Group>

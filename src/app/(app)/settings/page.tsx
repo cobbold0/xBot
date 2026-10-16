@@ -1,6 +1,8 @@
 'use client';
 import { useState } from 'react';
-import { Accordion, Affix, Button, Group, NumberInput, Paper, SimpleGrid, Stack, Switch, TagsInput, Text, Textarea } from '@mantine/core';
+import Link from 'next/link';
+import { Accordion, Affix, Anchor, Button, Group, NumberInput, Paper, SimpleGrid, Stack, Switch, TagsInput, Text, Textarea } from '@mantine/core';
+import { modals } from '@mantine/modals';
 import { useDash } from '@/components/dash';
 import { PushSettings } from '@/components/push';
 import { XCredentials } from '@/components/x-credentials';
@@ -31,6 +33,17 @@ export default function Settings() {
   const set = <K extends keyof S>(k: K, val: S[K]) => setV((p) => ({ ...p, [k]: val }));
   const save = async () => { const r = await act(api<S>('/api/settings', 'PUT', v), 'Settings saved'); if (r) setV(r); };
 
+  const deleteAllData = () => modals.openConfirmModal({
+    title: 'Delete all data & disconnect?',
+    children: <Text size="sm">This permanently deletes your encrypted X cookies, settings, scraped posts, generated drafts, action history, and AI usage logs from JustBot, then signs you out.</Text>,
+    labels: { confirm: 'Delete everything', cancel: 'Cancel' },
+    confirmProps: { color: 'red' },
+    onConfirm: async () => {
+      await api('/api/privacy/delete-all', 'POST');
+      location.href = '/login';
+    },
+  });
+
   return (
     <Stack gap="md" pb={dirty ? 72 : 0}>
       <PageTitle>Settings</PageTitle>
@@ -49,7 +62,7 @@ export default function Settings() {
           <Accordion.Panel>
             <Stack>
               <TagsInput label="Topics" description="What you post about (or leave blank if targeting specific accounts/search terms)." value={v.topics} onChange={(x) => set('topics', x)} placeholder="Type and press Enter" />
-              <TagsInput label="Search terms" description="Keywords or trending topics to scrape on X." value={v.searchTerms} onChange={(x) => set('searchTerms', x)} placeholder="Type and press Enter" />
+              <TagsInput label="Search terms" description="Keywords or trending topics to scrape on X, Google News & Reddit." value={v.searchTerms} onChange={(x) => set('searchTerms', x)} placeholder="Type and press Enter" />
               <TagsInput label="Accounts" description="Target specific people/handles (without @) to scrape and post what is trending for them." value={v.accounts} onChange={(x) => set('accounts', x)} placeholder="Type and press Enter" />
               <Textarea label="Voice" description="How your posts should sound." autosize minRows={3} maxLength={2000} value={v.voice} onChange={(e) => set('voice', e.currentTarget.value)} />
             </Stack>
@@ -75,6 +88,20 @@ export default function Settings() {
         <Accordion.Item value="account">
           <Accordion.Control>Account &amp; session</Accordion.Control>
           <Accordion.Panel><XCredentials /></Accordion.Panel>
+        </Accordion.Item>
+
+        <Accordion.Item value="privacy">
+          <Accordion.Control>Privacy &amp; data</Accordion.Control>
+          <Accordion.Panel>
+            <Stack gap="sm">
+              <Text size="xs" c="dimmed">
+                Your X session cookies are encrypted at rest with AES-256-GCM and never shared with third parties. Read our full <Anchor component={Link} href="/privacy" size="xs">Privacy Policy &amp; Risk Disclosure</Anchor>.
+              </Text>
+              <Group>
+                <Button color="red" variant="light" onClick={deleteAllData}>Delete all my data &amp; disconnect</Button>
+              </Group>
+            </Stack>
+          </Accordion.Panel>
         </Accordion.Item>
       </Accordion>
 

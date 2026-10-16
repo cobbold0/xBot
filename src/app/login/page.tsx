@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
-import { Alert, Button, Center, Paper, PasswordInput, Stack, Title } from '@mantine/core';
+import Link from 'next/link';
+import { Alert, Anchor, Button, Center, Paper, PasswordInput, Stack, Text, Title } from '@mantine/core';
 
 export default function Login() {
   const [err, setErr] = useState('');
@@ -16,10 +17,13 @@ export default function Login() {
     <Center mih="100dvh" p="md">
       <Paper withBorder p="lg" w="100%" maw={360} component="form" onSubmit={submit}>
         <Stack>
-          <Title order={2}>xBot</Title>
+          <Title order={2}>JustBot</Title>
           <PasswordInput name="password" label="Password" autoFocus required autoComplete="current-password" />
           {err && <Alert color="red" p="xs">{err}</Alert>}
           <Button type="submit" loading={busy}>Sign in</Button>
+          <Text size="xs" c="dimmed" ta="center">
+            <Anchor component={Link} href="/privacy" size="xs">Privacy Policy &amp; Data Deletion</Anchor>
+          </Text>
         </Stack>
       </Paper>
     </Center>

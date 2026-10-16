@@ -25,8 +25,8 @@ export async function generateDrafts(ai: AiAgent, s: Settings, count = 2): Promi
     // Auto-publish mode schedules with jitter; otherwise stays a draft awaiting human approval.
     const jitterMin = Math.floor(Math.random() * 30);
     const r = await q<{ id: number }>(
-      `INSERT INTO drafts(kind, text, text_hash, topic, rationale, status, scheduled_for) VALUES ('post',$1,$2,$3,$4,$5, CASE WHEN $5='approved' THEN now() + make_interval(mins => $6) END) RETURNING id`,
-      [text, textHash(text), g.topic, g.rationale, s.autoPublish ? 'approved' : 'draft', jitterMin],
+      `INSERT INTO drafts(kind, text, text_hash, topic, rationale, media_type, media_prompt, status, scheduled_for) VALUES ('post',$1,$2,$3,$4,$5,$6,$7, CASE WHEN $7='approved' THEN now() + make_interval(mins => $8) END) RETURNING id`,
+      [text, textHash(text), g.topic, g.rationale, g.mediaType ?? 'image', g.mediaPrompt || null, s.autoPublish ? 'approved' : 'draft', jitterMin],
     );
     known.push(text);
     ids.push(r.rows[0].id);
