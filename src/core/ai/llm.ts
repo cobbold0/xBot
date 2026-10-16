@@ -18,3 +18,41 @@ export class AnthropicLlm implements LlmClient {
     return { text, inputTokens: r.usage.input_tokens, outputTokens: r.usage.output_tokens, model: this.model };
   }
 }
+
+export class GeminiLlm implements LlmClient {
+  constructor(private apiKey = env().GEMINI_API_KEY, private model = env().GEMINI_MODEL) {
+    if (!apiKey) throw new Error('GEMINI_API_KEY is not set');
+  }
+  async complete({ system, user, maxTokens }: { system: string; user: string; maxTokens: number }): Promise<LlmResult> {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(this.model)}:generateContent?key=${encodeURIComponent(this.apiKey!)}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: 'user', parts: [{ text: user }] }],
+        generationConfig: { maxOutputTokens: maxTokens, responseMimeType: 'application/json' },
+      }),
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`Gemini API ${res.status}: ${errText.slice(0, 300)}`);
+    }
+    const data: any = await res.json();
+    const text = (data.candidates?.[0]?.content?.parts ?? []).map((p: any) => p.text ?? '').join('');
+    const usage = data.usageMetadata ?? {};
+    return {
+      text,
+      inputTokens: Number(usage.promptTokenCount ?? 0),
+      outputTokens: Number(usage.candidatesTokenCount ?? 0),
+      model: this.model,
+    };
+  }
+}
+
+export function createLlm(e = env()): LlmClient {
+  if (e.GEMINI_API_KEY) return new GeminiLlm(e.GEMINI_API_KEY, e.GEMINI_MODEL);
+  if (e.ANTHROPIC_API_KEY) return new AnthropicLlm(e.ANTHROPIC_API_KEY, e.ANTHROPIC_MODEL);
+  return new GeminiLlm(e.GEMINI_API_KEY, e.GEMINI_MODEL);
+}

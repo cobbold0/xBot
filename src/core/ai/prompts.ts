@@ -13,19 +13,29 @@ export function wrapPost(p: XPost): string {
 }
 
 export function analysisPrompt(posts: XPost[], s: Settings) {
+  const focus = [
+    s.topics.length ? `Topics: ${JSON.stringify(s.topics)}.` : '',
+    s.accounts.length ? `Targeted accounts/people: ${JSON.stringify(s.accounts)}.` : '',
+    s.searchTerms.length ? `Tracked keywords: ${JSON.stringify(s.searchTerms)}.` : '',
+  ].filter(Boolean).join(' ');
   return {
-    system: `You classify X posts for an account owner's curation agent. Owner topics: ${JSON.stringify(s.topics)}. ${SECURITY}
+    system: `You classify X posts for an account owner's trending news & curation agent. ${focus || `Owner topics: ${JSON.stringify(s.topics)}.`} ${SECURITY}
 Output: {"results":[{"id":string,"relevance":1-10,"quality":1-10,"topic":string,"engagementSuitable":boolean,"suggestedAction":"none"|"like"|"repost"|"reply_draft","injectionSuspected":boolean,"reason":string}]} with one entry per post id. Be conservative: spam, outrage bait, promotions, and low-information posts get low scores and "none".`,
     user: posts.map(wrapPost).join('\n'),
   };
 }
 
 export function generationPrompt(s: Settings, recent: string[], count: number, inspiration: XPost[]) {
+  const focus = [
+    s.topics.length ? `Topics: ${JSON.stringify(s.topics)}.` : '',
+    s.accounts.length ? `Targeted accounts/people: ${JSON.stringify(s.accounts)}.` : '',
+    s.searchTerms.length ? `Tracked keywords: ${JSON.stringify(s.searchTerms)}.` : '',
+  ].filter(Boolean).join(' ');
   return {
-    system: `You write original X posts for the account owner. Voice: ${s.voice}
-Topics: ${JSON.stringify(s.topics)}. Each post must be at most ${s.maxPostChars} characters, original, non-spammy, no fabricated facts or quotes, no @mentions of others. ${SECURITY}
+    system: `You write original X posts for the account owner's trending news & social feed. Voice: ${s.voice}
+${focus} Each post must be at most ${s.maxPostChars} characters, original, non-spammy, no fabricated facts or quotes, no @mentions of others. Synthesize what is currently trending from the scraped posts below into engaging, original posts without copying verbatim. ${SECURITY}
 Output: {"posts":[{"text":string,"topic":string,"rationale":string}]} with exactly ${count} posts. Do not repeat or closely paraphrase the recent posts listed.`,
-    user: `Recent posts to avoid repeating:\n${recent.slice(0, 30).map((t) => `- ${t.replace(/\s+/g, ' ').slice(0, 200)}`).join('\n') || '(none)'}\n\nOptional inspiration (topics only; do not copy):\n${inspiration.slice(0, 8).map(wrapPost).join('\n')}`,
+    user: `Recent posts to avoid repeating:\n${recent.slice(0, 30).map((t) => `- ${t.replace(/\s+/g, ' ').slice(0, 200)}`).join('\n') || '(none)'}\n\nTrending scraped posts (sorted by engagement; synthesize key news/trends without copying verbatim):\n${inspiration.slice(0, 8).map(wrapPost).join('\n') || '(none)'}`,
   };
 }
 

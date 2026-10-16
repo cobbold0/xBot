@@ -48,9 +48,9 @@ export default function Settings() {
           <Accordion.Control>Topics, sources &amp; voice</Accordion.Control>
           <Accordion.Panel>
             <Stack>
-              <TagsInput label="Topics" description="What you post about. The generator needs at least one." value={v.topics} onChange={(x) => set('topics', x)} placeholder="Type and press Enter" />
-              <TagsInput label="Search terms" description="Keywords to monitor on X." value={v.searchTerms} onChange={(x) => set('searchTerms', x)} placeholder="Type and press Enter" />
-              <TagsInput label="Accounts" description="Handles to watch (without @)." value={v.accounts} onChange={(x) => set('accounts', x)} placeholder="Type and press Enter" />
+              <TagsInput label="Topics" description="What you post about (or leave blank if targeting specific accounts/search terms)." value={v.topics} onChange={(x) => set('topics', x)} placeholder="Type and press Enter" />
+              <TagsInput label="Search terms" description="Keywords or trending topics to scrape on X." value={v.searchTerms} onChange={(x) => set('searchTerms', x)} placeholder="Type and press Enter" />
+              <TagsInput label="Accounts" description="Target specific people/handles (without @) to scrape and post what is trending for them." value={v.accounts} onChange={(x) => set('accounts', x)} placeholder="Type and press Enter" />
               <Textarea label="Voice" description="How your posts should sound." autosize minRows={3} maxLength={2000} value={v.voice} onChange={(e) => set('voice', e.currentTarget.value)} />
             </Stack>
           </Accordion.Panel>

@@ -6,10 +6,15 @@ import type { XPost } from '../x/types';
 
 /** Generates original post drafts, rejecting over-length and near-duplicate text. Returns ids created. */
 export async function generateDrafts(ai: AiAgent, s: Settings, count = 2): Promise<number[]> {
-  if (!s.topics.length) return [];
+  if (!s.topics.length && !s.accounts.length && !s.searchTerms.length) return [];
   const { rows: hist } = await q<{ text: string }>(`SELECT text FROM drafts WHERE kind='post' AND status <> 'rejected' ORDER BY created_at DESC LIMIT 200`);
   const known = hist.map((r) => r.text);
-  const { rows: insp } = await q<any>(`SELECT x_id, text, author_handle, metadata FROM posts WHERE status='analyzed' AND (analysis->>'injectionSuspected')::boolean = false ORDER BY first_seen_at DESC LIMIT 8`);
+  const { rows: insp } = await q<any>(
+    `SELECT x_id, text, author_handle, metadata FROM posts
+     WHERE status='analyzed' AND (analysis->>'injectionSuspected')::boolean = false
+     ORDER BY (COALESCE((metadata->>'likes')::int, 0) + COALESCE((metadata->>'reposts')::int, 0) * 2) DESC, first_seen_at DESC
+     LIMIT 8`,
+  );
   const inspiration: XPost[] = insp.map((r: any) => ({ id: r.x_id, text: r.text, authorId: '', authorHandle: r.author_handle ?? '', createdAt: '', likes: r.metadata?.likes ?? 0, reposts: r.metadata?.reposts ?? 0, replies: 0, isReply: false, isRepost: false }));
   const generated = await ai.generatePosts(count, known, inspiration);
   const ids: number[] = [];

@@ -5,7 +5,7 @@ import { closePool } from '../core/db/pool';
 import { buildJobs } from '../core/jobs';
 import { log } from '../core/log';
 import { Scheduler } from '../core/scheduler/scheduler';
-import { AnthropicLlm } from '../core/ai/llm';
+import { createLlm } from '../core/ai/llm';
 import { createXClient } from '../core/x/rettiwt';
 import { getStoredApiKey } from '../core/x/credentials';
 import { XError, type XClient } from '../core/x/types';
@@ -28,7 +28,7 @@ async function main() {
   };
   const sched = new Scheduler(buildJobs({
     x: () => { if (!x) throw new XError('auth', 'No valid X credentials configured'); return x; },
-    llm: () => (llm ??= new AnthropicLlm()),
+    llm: () => (llm ??= createLlm()),
   }));
   await sched.init();
 

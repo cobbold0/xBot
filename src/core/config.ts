@@ -5,10 +5,12 @@ const num = (d: number) => z.string().optional().transform((v) => (v === undefin
 
 const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1),
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default('gemini-2.5-flash-lite'),
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default('claude-sonnet-5-5'),
-  ANTHROPIC_PRICE_INPUT_PER_MTOK: num(3),
-  ANTHROPIC_PRICE_OUTPUT_PER_MTOK: num(15),
+  ANTHROPIC_PRICE_INPUT_PER_MTOK: num(0.1),
+  ANTHROPIC_PRICE_OUTPUT_PER_MTOK: num(0.4),
   X_API_KEY: z.string().optional(),
   DASHBOARD_PASSWORD: z.string().optional(),
   SESSION_SECRET: z.string().optional(),
