@@ -77,21 +77,26 @@ export default function Home() {
 
       <Section title="Scheduled jobs">
         <Stack gap={6}>
-          {data.jobs.map((j) => (
-            <Box key={j.name}>
-              <Group justify="space-between" wrap="nowrap">
-                <Text size="sm" fw={500}>{j.name}</Text>
-                <Group gap="xs" wrap="nowrap">
-                  <Badge size="sm" variant="light" color={j.last_status === 'error' ? 'red' : j.last_status === 'ok' ? 'teal' : 'gray'}>{j.last_status ?? 'pending'}</Badge>
-                  <Text size="xs" c="dimmed" title={fmtTime(j.next_run_at)}>{relTime(j.next_run_at)}</Text>
-                  <Button size="compact-xs" variant="subtle" onClick={() => act(api('/api/jobs', 'POST', { name: j.name }), `${j.name} scheduled to run within 15s`)}>Run</Button>
+          {data.jobs.map((j) => {
+            const isAccount = j.name === 'account';
+            const status = isAccount && a.status === 'connected' ? 'ok' : (j.last_status ?? 'pending');
+            const hasError = status === 'error';
+            return (
+              <Box key={j.name}>
+                <Group justify="space-between" wrap="nowrap">
+                  <Text size="sm" fw={500}>{j.name}</Text>
+                  <Group gap="xs" wrap="nowrap">
+                    <Badge size="sm" variant="light" color={hasError ? 'red' : status === 'ok' ? 'teal' : 'gray'}>{status}</Badge>
+                    <Text size="xs" c="dimmed" title={fmtTime(j.next_run_at)}>{relTime(j.next_run_at)}</Text>
+                    <Button size="compact-xs" variant="subtle" onClick={() => act(api('/api/jobs', 'POST', { name: j.name }), `${j.name} scheduled to run within 15s`)}>Run</Button>
+                  </Group>
                 </Group>
-              </Group>
-              {j.last_status === 'error' && j.last_error && (
-                <Text size="xs" c="red" mt={2}>{j.last_error}</Text>
-              )}
-            </Box>
-          ))}
+                {hasError && (!isAccount || a.status !== 'connected') && (
+                  <Text size="xs" c="red" mt={2}>{isAccount && a.detail ? a.detail : j.last_error}</Text>
+                )}
+              </Box>
+            );
+          })}
         </Stack>
       </Section>
     </Stack>

@@ -59,6 +59,8 @@ export class Scheduler {
       let anyRan = false;
       let anyError: string | undefined;
       let skipReason: string | undefined;
+      let successCount = 0;
+      let failureCount = 0;
 
       for (const userId of tenants) {
         await runWithTenant(userId, async () => {
@@ -72,7 +74,9 @@ export class Scheduler {
           anyRan = true;
           try {
             await job.run(s);
+            successCount++;
           } catch (e) {
+            failureCount++;
             await recordError('job:' + job.name, e, userId);
             anyError = e instanceof Error ? e.message : 'error';
           }
@@ -83,7 +87,7 @@ export class Scheduler {
         await this.release(job, lastSettings, 'skipped', skipReason);
         continue;
       }
-      if (anyError) {
+      if (failureCount > 0 && successCount === 0) {
         await this.release(job, lastSettings, 'error', anyError);
       } else {
         await this.release(job, lastSettings, 'ok');

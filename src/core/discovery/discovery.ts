@@ -28,7 +28,7 @@ async function markAccount(x: XClient) {
       [userId, status, detail],
     );
     await notifyOnce(`account:${status}:${new Date().toISOString().slice(0, 10)}`, { title: status === 'expired' ? 'X session expired' : 'X account error', body: status === 'expired' ? 'Update your X credentials in Settings.' : 'The X connection check failed.', tag: 'account', url: '/settings' });
-    throw e;
+    if (status !== 'expired') throw e;
   }
 }
 export const verifyAccount = markAccount;
