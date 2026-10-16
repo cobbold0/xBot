@@ -38,23 +38,22 @@ export class GeminiLlm implements LlmClient {
     this.model = normalizeGeminiModel(model);
   }
 
-  private async discoverBestFlashModel(): Promise<string | undefined> {
+  private async discoverFlashModels(): Promise<string[]> {
     try {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(this.apiKey!)}`, {
         signal: AbortSignal.timeout(15_000),
       });
-      if (!r.ok) return undefined;
+      if (!r.ok) return [];
       const data: any = await r.json();
       const models: string[] = (data.models ?? [])
         .filter((m: any) => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
         .map((m: any) => String(m.name ?? '').replace(/^models\//, ''))
         .filter((name: string) => name.startsWith('gemini-') && name.includes('flash') && !name.includes('tts') && !name.includes('image'));
       const lite = models.filter((m) => m.includes('flash-lite')).sort().reverse();
-      if (lite[0]) return lite[0];
-      const flash = models.sort().reverse();
-      return flash[0];
+      const regular = models.filter((m) => !m.includes('flash-lite')).sort().reverse();
+      return [...new Set([...lite, ...regular])];
     } catch {
-      return undefined;
+      return [];
     }
   }
 
@@ -73,17 +72,42 @@ export class GeminiLlm implements LlmClient {
       });
     };
 
-    let res = await callModel(this.model);
+    let activeModel = this.model;
+    let res = await callModel(activeModel);
+
+    // Handle 404 (retired or invalid model name) by switching to Google's suggested model or discovering available Flash models
     if (res.status === 404) {
       const errText = await res.text().catch(() => '');
-      const suggested = errText.match(/use models\/([a-zA-Z0-9._-]+)/)?.[1] ?? (await this.discoverBestFlashModel());
-      if (suggested && suggested !== this.model) {
+      const suggested = errText.match(/use models\/([a-zA-Z0-9._-]+)/)?.[1] ?? (await this.discoverFlashModels())[0];
+      if (suggested && suggested !== activeModel) {
         this.model = suggested;
-        res = await callModel(this.model);
+        activeModel = suggested;
+        res = await callModel(activeModel);
       } else {
         throw new Error(`Gemini API ${res.status}: ${errText.slice(0, 300)}`);
       }
     }
+
+    // Handle 503 (high demand spike) / 429 with backoff retry and fallback to alternative Flash model if needed
+    if (res.status === 503 || res.status === 429) {
+      for (const delayMs of [1500, 3500]) {
+        await new Promise((r) => setTimeout(r, delayMs));
+        res = await callModel(activeModel);
+        if (res.ok) break;
+      }
+      if (res.status === 503) {
+        const fallbacks = (await this.discoverFlashModels()).filter((m) => m !== activeModel);
+        for (const fb of fallbacks.slice(0, 2)) {
+          const fbRes = await callModel(fb);
+          if (fbRes.ok) {
+            activeModel = fb;
+            res = fbRes;
+            break;
+          }
+        }
+      }
+    }
+
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
       throw new Error(`Gemini API ${res.status}: ${errText.slice(0, 300)}`);
@@ -95,7 +119,7 @@ export class GeminiLlm implements LlmClient {
       text,
       inputTokens: Number(usage.promptTokenCount ?? 0),
       outputTokens: Number(usage.candidatesTokenCount ?? 0),
-      model: this.model,
+      model: activeModel,
     };
   }
 }
