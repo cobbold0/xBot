@@ -45,7 +45,11 @@ export function defaultSettings(): Settings {
 }
 
 export async function getSettings(userId = getTenantId()): Promise<Settings> {
-  const { rows } = await q('SELECT value FROM settings WHERE key = $1', [settingKey('app', userId)]);
+  const k = settingKey('app', userId);
+  let { rows } = await q('SELECT value FROM settings WHERE key = $1', [k]);
+  if (!rows[0] && k !== 'app') {
+    rows = (await q('SELECT value FROM settings WHERE key = $1', ['app'])).rows;
+  }
   const parsed = SettingsSchema.safeParse({ ...defaultSettings(), ...(rows[0]?.value ?? {}) });
   return parsed.success ? parsed.data : defaultSettings();
 }

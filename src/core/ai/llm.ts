@@ -88,16 +88,13 @@ export class GeminiLlm implements LlmClient {
       }
     }
 
-    // Handle 503 (high demand spike) / 429 with backoff retry and fallback to alternative Flash model if needed
+    // Handle 503 (high demand spike) / 429 (model quota exceeded) with backoff and fallback across available Flash models
     if (res.status === 503 || res.status === 429) {
-      for (const delayMs of [1500, 3500]) {
-        await new Promise((r) => setTimeout(r, delayMs));
-        res = await callModel(activeModel);
-        if (res.ok) break;
-      }
-      if (res.status === 503) {
+      await new Promise((r) => setTimeout(r, 2000));
+      res = await callModel(activeModel);
+      if (res.status === 503 || res.status === 429) {
         const fallbacks = (await this.discoverFlashModels()).filter((m) => m !== activeModel);
-        for (const fb of fallbacks.slice(0, 2)) {
+        for (const fb of fallbacks.slice(0, 3)) {
           const fbRes = await callModel(fb);
           if (fbRes.ok) {
             activeModel = fb;
