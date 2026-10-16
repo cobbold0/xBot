@@ -49,6 +49,7 @@ export async function discover(x: XClient | undefined, s: Settings, externalTren
       ...queries.map((qStr) => ({ label: `reddit:${qStr}`, fetch: () => fetchRedditTrends(qStr, 6) })),
     ] : []),
   ];
+  let lastAuthErr: XError | undefined;
   for (const src of sources) {
     if (remaining <= 0) break;
     let posts: XPost[];
@@ -56,7 +57,10 @@ export async function discover(x: XClient | undefined, s: Settings, externalTren
       posts = await src.fetch();
     } catch (e) {
       await recordError('discover:' + src.label, e);
-      if (e instanceof XError && (e.kind === 'auth' || e.kind === 'rate_limit')) throw e;
+      if (e instanceof XError && e.kind === 'auth') {
+        lastAuthErr = e;
+        if (!externalTrends) throw e;
+      }
       continue;
     }
     for (const p of posts) {
