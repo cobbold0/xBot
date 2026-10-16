@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { guard, HttpError } from '@/web/api';
 import { createUserSession, hashPassword, loginAllowed, loginFailed, verifyPassword } from '@/web/auth';
 import { prisma } from '@/core/db/prisma';
+import { ensureTenantInitialized } from '@/core/tenant';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +43,7 @@ export const POST = guard(async (req) => {
         },
       },
     });
+    await ensureTenantInitialized(user.id);
     await createUserSession(user.id);
     return { ok: true, user: { id: user.id, email: user.email, name: user.name } };
   }
@@ -51,6 +53,7 @@ export const POST = guard(async (req) => {
     loginFailed(ip);
     throw new HttpError(401, 'Invalid email or password');
   }
+  await ensureTenantInitialized(user.id);
   await createUserSession(user.id);
   return { ok: true, user: { id: user.id, email: user.email, name: user.name } };
 }, { public: true });

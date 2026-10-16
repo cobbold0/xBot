@@ -10,7 +10,7 @@ import { createXClient } from '../core/x/rettiwt';
 import { getStoredApiKey } from '../core/x/credentials';
 import { XError, type XClient } from '../core/x/types';
 import type { LlmClient } from '../core/ai/llm';
-import { DEFAULT_TENANT_ID, getTenantId, listTenantIds } from '../core/tenant';
+import { DEFAULT_TENANT_ID, ensureTenantInitialized, getTenantId, listTenantIds } from '../core/tenant';
 
 const TICK_MS = 15_000;
 
@@ -20,11 +20,12 @@ async function main() {
   const xClients = new Map<string, { key: string; client: XClient }>();
   let llm: LlmClient | undefined;
 
-  /** Syncs per-tenant X credentials stored in the dashboard (or fallback X_API_KEY). */
+  /** Syncs per-tenant X credentials stored in the dashboard (or fallback X_API_KEY for default tenant). */
   const syncX = async () => {
     const tenants = await listTenantIds();
     for (const userId of tenants) {
-      const key = (await getStoredApiKey(userId)) ?? (userId === DEFAULT_TENANT_ID || tenants.length === 1 ? process.env.X_API_KEY ?? null : null);
+      await ensureTenantInitialized(userId);
+      const key = (await getStoredApiKey(userId)) ?? (userId === DEFAULT_TENANT_ID ? process.env.X_API_KEY ?? null : null);
       const prev = xClients.get(userId);
       if (!key) {
         xClients.delete(userId);

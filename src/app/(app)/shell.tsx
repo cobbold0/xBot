@@ -2,9 +2,9 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ActionIcon, AppShell, Badge, Box, Button, Group, Indicator, NavLink, Stack, Text, UnstyledButton } from '@mantine/core';
+import { ActionIcon, AppShell, Badge, Button, Group, Indicator, NavLink, Stack, Text, UnstyledButton } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { IconActivity, IconChartAreaLine, IconHome2, IconPencil, IconPlayerPause, IconPlayerPlay, IconSettings, IconWifiOff } from '@tabler/icons-react';
+import { IconActivity, IconChartAreaLine, IconHome2, IconLogout, IconPencil, IconPlayerPause, IconPlayerPlay, IconSettings, IconWifiOff } from '@tabler/icons-react';
 import { api, type Dash } from '@/web/client';
 import { DashProvider, useDash } from '@/components/dash';
 
@@ -31,13 +31,18 @@ function useNav() {
 function Frame({ children }: { children: ReactNode }) {
   const { data, act, offline } = useDash();
   const nav = useNav();
-  const { control: c, account: a } = data;
+  const { control: c, account: a, user: u } = data;
 
   const stop = () => modals.openConfirmModal({
     title: 'Emergency stop', children: <Text size="sm">Halts all jobs and blocks every write action immediately. You must clear it manually.</Text>,
     labels: { confirm: 'Stop everything', cancel: 'Cancel' }, confirmProps: { color: 'red' },
     onConfirm: () => act(api('/api/control', 'POST', { emergencyStop: true }), 'Emergency stop active'),
   });
+
+  const signOut = async () => {
+    await api('/api/logout', 'POST');
+    location.href = '/login';
+  };
 
   return (
     <AppShell header={{ height: 56 }} navbar={{ width: 220, breakpoint: 'sm', collapsed: { mobile: true } }} footer={{ height: DOCK_H }} padding="md" styles={{ footer: { display: undefined } }}>
@@ -46,6 +51,7 @@ function Frame({ children }: { children: ReactNode }) {
           <Group gap="xs" wrap="nowrap">
             <Text fw={800} size="lg">JustBot</Text>
             <Badge variant="light" color={a.status === 'connected' ? 'teal' : 'red'} size="sm" style={{ textTransform: 'none' }}>{a.status === 'connected' && a.username ? `@${a.username}` : a.status}</Badge>
+            {u && <Badge variant="outline" color="gray" size="sm" visibleFrom="xs" style={{ textTransform: 'none' }}>{u.name || u.email}</Badge>}
             {offline && <IconWifiOff size={16} color="var(--mantine-color-red-6)" aria-label="offline" />}
           </Group>
           <Group gap="xs" wrap="nowrap">
@@ -57,6 +63,9 @@ function Frame({ children }: { children: ReactNode }) {
             {c.emergencyStop
               ? <Button size="compact-md" color="red" variant="filled" onClick={() => act(api('/api/control', 'POST', { emergencyStop: false }), 'Emergency stop cleared')}>Clear stop</Button>
               : <Button size="compact-md" color="red" variant="light" onClick={stop}>Stop</Button>}
+            <Button size="compact-md" variant="subtle" color="gray" leftSection={<IconLogout size={15} />} onClick={signOut}>
+              Sign out
+            </Button>
           </Group>
         </Group>
       </AppShell.Header>

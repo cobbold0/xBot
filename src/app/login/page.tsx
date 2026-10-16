@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { Alert, Anchor, Button, Center, Divider, Group, Paper, PasswordInput, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Alert, Anchor, Badge, Button, Center, Divider, Group, Paper, PasswordInput, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
 
 function parsePastedCookies(input: string): { authToken?: string; ct0?: string; twid?: string } {
   let s = input.trim();
@@ -13,8 +13,9 @@ function parsePastedCookies(input: string): { authToken?: string; ct0?: string; 
 }
 
 export default function Login() {
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [tab, setTab] = useState<'x' | 'email' | 'code'>('x');
-  const [emailMode, setEmailMode] = useState<'signin' | 'signup' | 'admin'>('signin');
+  const [useServerKey, setUseServerKey] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [cookiePaste, setCookiePaste] = useState('');
@@ -82,7 +83,7 @@ export default function Login() {
     setBusy(true);
     setErr('');
     const fd = new FormData(e.currentTarget);
-    if (emailMode === 'admin') {
+    if (useServerKey && authMode === 'signin') {
       const password = fd.get('password');
       const r = await fetch('/api/login', {
         method: 'POST',
@@ -100,7 +101,7 @@ export default function Login() {
     const r = await fetch('/api/auth/email-login', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email, password, mode: emailMode, ...(name ? { name } : {}) }),
+      body: JSON.stringify({ email, password, mode: authMode, ...(name ? { name } : {}) }),
     });
     const data = await r.json().catch(() => ({}));
     if (r.ok) location.href = '/';
@@ -123,22 +124,51 @@ export default function Login() {
 
   return (
     <Center mih="100dvh" p="md">
-      <Paper withBorder p="lg" w="100%" maw={400}>
+      <Paper withBorder p="lg" w="100%" maw={420}>
         <Stack gap="md">
-          <Group justify="space-between" align="baseline">
-            <Title order={2}>JustBot</Title>
-            <Text size="xs" c="dimmed">Trending News &amp; X Agent</Text>
+          <Group justify="space-between" align="center">
+            <Stack gap={0}>
+              <Title order={2}>JustBot</Title>
+              <Text size="xs" c="dimmed">Trending News &amp; X Agent</Text>
+            </Stack>
+            <Badge variant="light" color={authMode === 'signup' ? 'teal' : 'indigo'}>
+              {authMode === 'signup' ? 'Create Account' : 'Sign In'}
+            </Badge>
           </Group>
 
           <SegmentedControl
             fullWidth
+            color={authMode === 'signup' ? 'teal' : 'indigo'}
+            value={authMode}
+            onChange={(v) => {
+              const next = v as 'signin' | 'signup';
+              setAuthMode(next);
+              setErr('');
+              if (next === 'signup' && tab === 'code') setTab('email');
+            }}
+            data={[
+              { value: 'signin', label: 'Sign In' },
+              { value: 'signup', label: 'Sign Up (New Account)' },
+            ]}
+          />
+
+          <SegmentedControl
+            fullWidth
+            size="xs"
             value={tab}
             onChange={(v) => { setTab(v as any); setErr(''); }}
-            data={[
-              { value: 'x', label: 'X Extension' },
-              { value: 'email', label: 'Email' },
-              { value: 'code', label: 'QR / Code' },
-            ]}
+            data={
+              authMode === 'signup'
+                ? [
+                    { value: 'x', label: 'Sign Up with X' },
+                    { value: 'email', label: 'Sign Up with Email' },
+                  ]
+                : [
+                    { value: 'x', label: 'X Extension' },
+                    { value: 'email', label: 'Email' },
+                    { value: 'code', label: 'QR / Code' },
+                  ]
+            }
           />
 
           {err && <Alert color="red" p="xs"><Text size="xs">{err}</Text></Alert>}
@@ -146,10 +176,12 @@ export default function Login() {
           {tab === 'x' && (
             <Stack gap="sm">
               <Text size="xs" c="dimmed">
-                Sign in with 1 click using your active X session in this browser. You can set up an email &amp; password or scan a QR code for your phone right after.
+                {authMode === 'signup'
+                  ? 'Create a brand-new isolated JustBot account using the X account currently logged into this browser.'
+                  : 'Sign in with 1 click using your active X session in this browser. If this X handle is new to JustBot, an isolated account will be created automatically.'}
               </Text>
-              <Button color="indigo" size="md" onClick={signInViaExtension} loading={busy}>
-                1-Click Sign In with X (Extension)
+              <Button color={authMode === 'signup' ? 'teal' : 'indigo'} size="md" onClick={signInViaExtension} loading={busy}>
+                {authMode === 'signup' ? '1-Click Sign Up with X (Extension)' : '1-Click Sign In with X (Extension)'}
               </Button>
               <Button component="a" href="/justbot-extension.zip" download="justbot-extension.zip" variant="light" size="xs">
                 Download JustBot Chrome Extension (.zip)
@@ -165,46 +197,69 @@ export default function Login() {
                     autoComplete="off"
                   />
                   <Button type="submit" variant="default" size="xs" loading={busy} disabled={!cookiePaste.trim()}>
-                    Verify &amp; Sign In with Cookies
+                    {authMode === 'signup' ? 'Verify & Create Account with Cookies' : 'Verify & Sign In with Cookies'}
                   </Button>
                 </Stack>
               </form>
+
+              <Divider my={2} />
+              <Button
+                variant="subtle"
+                size="xs"
+                onClick={() => {
+                  setAuthMode('signup');
+                  setTab('email');
+                  setErr('');
+                }}
+              >
+                Want to sign up with Email &amp; Password instead? Click here →
+              </Button>
             </Stack>
           )}
 
           {tab === 'email' && (
             <form onSubmit={submitEmail}>
               <Stack gap="sm">
-                <SegmentedControl
-                  size="xs"
-                  value={emailMode}
-                  onChange={(v) => { setEmailMode(v as any); setErr(''); }}
-                  data={[
-                    { value: 'signin', label: 'Sign In' },
-                    { value: 'signup', label: 'Create Account' },
-                    { value: 'admin', label: 'Server Key' },
-                  ]}
-                />
-                {emailMode === 'signup' && (
-                  <TextInput name="name" label="Name" placeholder="Your name or handle" />
+                {authMode === 'signup' && (
+                  <Text size="xs" c="dimmed">
+                    Create a standalone JustBot account with its own isolated settings, scraped trends, drafts, and X connection.
+                  </Text>
                 )}
-                {emailMode !== 'admin' && (
+                {authMode === 'signup' && (
+                  <TextInput name="name" label="Name or Handle" placeholder="e.g. Alex or @alex" required />
+                )}
+                {(!useServerKey || authMode === 'signup') && (
                   <TextInput name="email" type="email" label="Email" placeholder="you@example.com" required autoComplete="email" />
                 )}
                 <PasswordInput
                   name="password"
-                  label={emailMode === 'admin' ? 'Server Dashboard Passphrase' : 'Password (min 8 chars)'}
+                  label={useServerKey && authMode === 'signin' ? 'Server Dashboard Passphrase' : 'Password (min 8 chars)'}
                   required
-                  autoComplete={emailMode === 'signup' ? 'new-password' : 'current-password'}
+                  autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
                 />
-                <Button type="submit" loading={busy}>
-                  {emailMode === 'signup' ? 'Create Account & Sign In' : 'Sign In'}
+                <Button type="submit" color={authMode === 'signup' ? 'teal' : 'indigo'} loading={busy}>
+                  {authMode === 'signup' ? 'Create Account & Sign In' : 'Sign In'}
                 </Button>
+                {authMode === 'signin' && (
+                  <Group justify="space-between">
+                    <Anchor component="button" type="button" size="xs" onClick={() => { setAuthMode('signup'); setErr(''); }}>
+                      Don&apos;t have an account? Sign Up
+                    </Anchor>
+                    <Anchor component="button" type="button" size="xs" c="dimmed" onClick={() => { setUseServerKey((v) => !v); setErr(''); }}>
+                      {useServerKey ? 'Use Email & Password' : 'Use Server Passphrase'}
+                    </Anchor>
+                  </Group>
+                )}
+                {authMode === 'signup' && (
+                  <Anchor component="button" type="button" size="xs" ta="center" onClick={() => { setAuthMode('signin'); setErr(''); }}>
+                    Already have an account? Sign In
+                  </Anchor>
+                )}
               </Stack>
             </form>
           )}
 
-          {tab === 'code' && (
+          {tab === 'code' && authMode === 'signin' && (
             <form onSubmit={submitPairCode}>
               <Stack gap="sm">
                 <Text size="xs" c="dimmed">

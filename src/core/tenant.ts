@@ -34,7 +34,10 @@ export async function listTenantIds(): Promise<string[]> {
   return [DEFAULT_TENANT_ID];
 }
 
-/** Ensures the tenant has control and account rows initialized, and migrates orphaned 'default' data to the user. */
+/**
+ * Ensures the tenant has its own isolated control and account rows initialized.
+ * Only the very first user (owner) adopts any legacy 'default' data; all subsequent sign-ups start with a clean slate.
+ */
 export async function ensureTenantInitialized(userId: string): Promise<void> {
   await q(
     `INSERT INTO account(id, user_id, status) VALUES (true, $1, 'unknown') ON CONFLICT (user_id) DO NOTHING`,
@@ -46,21 +49,31 @@ export async function ensureTenantInitialized(userId: string): Promise<void> {
   );
   if (userId === DEFAULT_TENANT_ID) return;
 
-  // Migrate legacy 'app' and 'x_credentials' settings if this user doesn't have tenant-scoped ones yet
-  await q(
+  const { rows: firstRows } = await q<{ id: string }>('SELECT id FROM app_users ORDER BY created_at ASC LIMIT 1');
+  if (firstRows[0]?.id !== userId) return;
+
+  // One-time migration of legacy global 'app' and 'x_credentials' to the primary owner account, then remove global keys
+  const movedApp = await q(
     `INSERT INTO settings(key, value, updated_at)
      SELECT $1, value, updated_at FROM settings WHERE key = 'app'
      ON CONFLICT (key) DO NOTHING`,
     [settingKey('app', userId)],
   );
-  await q(
+  if (movedApp.rowCount) {
+    await q(`DELETE FROM settings WHERE key = 'app'`).catch(() => {});
+  }
+
+  const movedCreds = await q(
     `INSERT INTO settings(key, value, updated_at)
      SELECT $1, value, updated_at FROM settings WHERE key = 'x_credentials'
      ON CONFLICT (key) DO NOTHING`,
     [settingKey('x_credentials', userId)],
   );
+  if (movedCreds.rowCount) {
+    await q(`DELETE FROM settings WHERE key = 'x_credentials'`).catch(() => {});
+  }
 
-  // Adopt any remaining 'default' rows
+  // Adopt any remaining 'default' rows for the primary owner account only
   await q(`UPDATE posts SET user_id = $1 WHERE user_id = 'default'`, [userId]).catch(() => {});
   await q(`UPDATE drafts SET user_id = $1 WHERE user_id = 'default'`, [userId]).catch(() => {});
   await q(`UPDATE actions SET user_id = $1 WHERE user_id = 'default'`, [userId]).catch(() => {});
