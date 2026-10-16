@@ -50,7 +50,10 @@ export const POST = guard(async (req) => {
     create: { code, token, userId: user.id, expiresAt },
   });
 
-  const origin = (body?.baseUrl || new URL(req.url).origin).replace(/\/+$/, '');
+  const fwdProto = req.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
+  const fwdHost = (req.headers.get('x-forwarded-host') || req.headers.get('host'))?.split(',')[0]?.trim();
+  const inferredOrigin = fwdHost ? `${fwdProto || 'https'}://${fwdHost}` : new URL(req.url).origin;
+  const origin = (body?.baseUrl || inferredOrigin).replace(/\/+$/, '');
   const pairUrl = `${origin}/api/auth/pair?token=${token}`;
   const qrSvg = await QRCode.toString(pairUrl, { type: 'svg', margin: 1, width: 200 });
 

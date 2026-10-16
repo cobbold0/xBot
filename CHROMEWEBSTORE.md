@@ -15,12 +15,13 @@ JustBot X Connector lets you link your logged-in X account to your self-hosted o
 ## Permissions Justification
 - **`cookies`**: Required to read the `auth_token`, `ct0`, and `twid` session cookies from the user's active X session when the user clicks "Sync to JustBot" or "1-Click Connect".
 - **`storage`**: Required to save the user's preferred JustBot dashboard URL locally in the browser.
-- **`host_permissions` (`https://x.com/*`, `https://twitter.com/*`, `http://localhost:3007/*`, `https://*/*`)**: Required to read the three X session cookies on user request and allow self-hosted JustBot instances on any user-configured HTTPS domain to receive the verified session via the content script bridge or popup.
+- **`host_permissions` (`https://x.com/*`, `https://twitter.com/*`, `https://xbot.cobbold.dev/*`, `https://justbot.cobbold.dev/*`, `http://localhost:3007/*`)**: Scoped strictly to X domains (to read the three session cookies on user request) and the official JustBot dashboard domains (`xbot.cobbold.dev`, `justbot.cobbold.dev`, and local dev) to send the verified session cookies.
 
 ## Privacy & Data Use
 - **Data Collected:** X session cookies (`auth_token`, `ct0`, `twid`) only when explicitly triggered by the user.
-- **Data Transmission:** Sent only to the user-configured JustBot server (`/api/x-credentials`), encrypted at rest with AES-256-GCM. Never sold or shared with third parties.
-- **Privacy Policy URL:** `/privacy` on the hosted JustBot instance.
+- **Data Transmission:** Sent only to the JustBot server (`https://xbot.cobbold.dev` / `https://justbot.cobbold.dev`), encrypted at rest with AES-256-GCM. Never sold or shared with third parties.
+- **Privacy Policy URL:** `https://xbot.cobbold.dev/privacy` (and `https://justbot.cobbold.dev/privacy`).
 
 ## Version History
+- **1.0.1 (2026-10-16):** Scoped production domains to `xbot.cobbold.dev` and `justbot.cobbold.dev`, added 1-click sign-in and mobile QR code pairing.
 - **1.0.0 (2026-10-16):** Initial release with 1-click dashboard bridge and popup sync.

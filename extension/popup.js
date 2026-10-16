@@ -27,7 +27,7 @@ syncBtn.addEventListener('click', async () => {
   syncBtn.disabled = true;
   showStatus('Signing in with X session...', true);
   try {
-    const baseUrl = urlInput.value.trim() || 'http://localhost:3007';
+    const baseUrl = urlInput.value.trim() || 'https://xbot.cobbold.dev';
     const res = await chrome.runtime.sendMessage({ type: 'SYNC_TO_JUSTBOT', baseUrl });
     if (res?.ok) {
       showStatus(`Signed in as @${res.username}! Opening JustBot...`, true);
@@ -46,7 +46,7 @@ qrBtn.addEventListener('click', async () => {
   qrBtn.disabled = true;
   showStatus('Generating mobile login QR code...', true);
   try {
-    const baseUrl = urlInput.value.trim() || 'http://localhost:3007';
+    const baseUrl = urlInput.value.trim() || 'https://xbot.cobbold.dev';
     const res = await chrome.runtime.sendMessage({ type: 'GENERATE_MOBILE_QR', baseUrl });
     if (res?.ok) {
       const parser = new DOMParser();

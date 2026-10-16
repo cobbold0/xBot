@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "JustBot X Connector",
-  "version": "1.0.0",
-  "description": "Connect your active X (Twitter) session to your JustBot dashboard in one click without sharing your X password.",
+  "version": "1.0.1",
+  "description": "Connect your active X (Twitter) session to JustBot in one click without sharing your X password.",
   "permissions": [
     "cookies",
     "storage"
@@ -10,8 +10,9 @@
   "host_permissions": [
     "https://x.com/*",
     "https://twitter.com/*",
-    "http://localhost:3007/*",
-    "https://*/*"
+    "https://xbot.cobbold.dev/*",
+    "https://justbot.cobbold.dev/*",
+    "http://localhost:3007/*"
   ],
   "background": {
     "service_worker": "service-worker.js"
@@ -22,8 +23,9 @@
   "content_scripts": [
     {
       "matches": [
-        "http://localhost:3007/*",
-        "https://*/*"
+        "https://xbot.cobbold.dev/*",
+        "https://justbot.cobbold.dev/*",
+        "http://localhost:3007/*"
       ],
       "js": [
         "content.js"

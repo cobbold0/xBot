@@ -105,7 +105,12 @@
     <h2>JustBot X Connector</h2>
     <p>1-Click Sign In to JustBot using your active X session, or scan a QR code to log in your phone.</p>
     <label for="justbotUrl">JustBot Dashboard URL</label>
-    <input id="justbotUrl" type="url" value="http://localhost:3007" />
+    <input id="justbotUrl" type="url" list="justbotUrls" value="https://xbot.cobbold.dev" />
+    <datalist id="justbotUrls">
+      <option value="https://xbot.cobbold.dev"></option>
+      <option value="https://justbot.cobbold.dev"></option>
+      <option value="http://localhost:3007"></option>
+    </datalist>
     <button id="syncBtn" type="button">1-Click Sign In &amp; Open JustBot</button>
     <button id="qrBtn" type="button" class="secondary">Mobile Login QR Code</button>
     <button id="copyBtn" type="button" class="secondary">Copy Cookie String</button>

@@ -45,7 +45,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           return;
         }
         const stored = await chrome.storage.local.get('justbotUrl');
-        const baseUrl = String(message.baseUrl || stored.justbotUrl || 'http://localhost:3007').replace(/\/+$/, '');
+        const baseUrl = String(message.baseUrl || stored.justbotUrl || 'https://xbot.cobbold.dev').replace(/\/+$/, '');
         await chrome.storage.local.set({ justbotUrl: baseUrl });
 
         const resp = await fetch(`${baseUrl}/api/auth/x-login`, {
@@ -77,7 +77,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           return;
         }
         const stored = await chrome.storage.local.get('justbotUrl');
-        const baseUrl = String(message.baseUrl || stored.justbotUrl || 'http://localhost:3007').replace(/\/+$/, '');
+        const baseUrl = String(message.baseUrl || stored.justbotUrl || 'https://xbot.cobbold.dev').replace(/\/+$/, '');
         await chrome.storage.local.set({ justbotUrl: baseUrl });
 
         const resp = await fetch(`${baseUrl}/api/auth/qr`, {
