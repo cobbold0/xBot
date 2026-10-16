@@ -6,7 +6,7 @@ const num = (d: number) => z.string().optional().transform((v) => (v === undefin
 const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1),
   GEMINI_API_KEY: z.string().optional(),
-  GEMINI_MODEL: z.string().default('gemini-2.5-flash-lite'),
+  GEMINI_MODEL: z.string().default('gemini-3.5-flash-lite'),
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default('claude-sonnet-5-5'),
   ANTHROPIC_PRICE_INPUT_PER_MTOK: num(0.1),

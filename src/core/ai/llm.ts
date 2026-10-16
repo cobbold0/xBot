@@ -19,22 +19,44 @@ export class AnthropicLlm implements LlmClient {
   }
 }
 
+const LEGACY_GEMINI_MODELS: Record<string, string> = {
+  'gemini-2.5-flash-lite': 'gemini-3.5-flash-lite',
+  'models/gemini-2.5-flash-lite': 'gemini-3.5-flash-lite',
+};
+
 export class GeminiLlm implements LlmClient {
-  constructor(private apiKey = env().GEMINI_API_KEY, private model = env().GEMINI_MODEL) {
+  private model: string;
+  constructor(private apiKey = env().GEMINI_API_KEY, model = env().GEMINI_MODEL) {
     if (!apiKey) throw new Error('GEMINI_API_KEY is not set');
+    const clean = model.replace(/^models\//, '').trim();
+    this.model = LEGACY_GEMINI_MODELS[clean] ?? clean;
   }
   async complete({ system, user, maxTokens }: { system: string; user: string; maxTokens: number }): Promise<LlmResult> {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(this.model)}:generateContent?key=${encodeURIComponent(this.apiKey!)}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: 'user', parts: [{ text: user }] }],
-        generationConfig: { maxOutputTokens: maxTokens, responseMimeType: 'application/json' },
-      }),
-      signal: AbortSignal.timeout(60_000),
-    });
+    const callModel = async (m: string) => {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent?key=${encodeURIComponent(this.apiKey!)}`;
+      return fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: system }] },
+          contents: [{ role: 'user', parts: [{ text: user }] }],
+          generationConfig: { maxOutputTokens: maxTokens, responseMimeType: 'application/json' },
+        }),
+        signal: AbortSignal.timeout(60_000),
+      });
+    };
+
+    let res = await callModel(this.model);
+    if (res.status === 404) {
+      const errText = await res.text().catch(() => '');
+      const suggested = errText.match(/use models\/([a-zA-Z0-9._-]+)/)?.[1] ?? (this.model !== 'gemini-3.5-flash-lite' ? 'gemini-3.5-flash-lite' : undefined);
+      if (suggested && suggested !== this.model) {
+        this.model = suggested;
+        res = await callModel(this.model);
+      } else {
+        throw new Error(`Gemini API ${res.status}: ${errText.slice(0, 300)}`);
+      }
+    }
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
       throw new Error(`Gemini API ${res.status}: ${errText.slice(0, 300)}`);
