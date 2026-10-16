@@ -1,8 +1,8 @@
 'use client';
 import { useState } from 'react';
-import { Alert, Badge, Button, Group, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
+import { Alert, Badge, Box, Button, Divider, Group, Paper, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { IconLogout } from '@tabler/icons-react';
+import { IconLogout, IconQrcode } from '@tabler/icons-react';
 import { api, relTime } from '@/web/client';
 import { useDash } from './dash';
 
@@ -21,6 +21,16 @@ export function XCredentials() {
   const [twid, setTwid] = useState('');
   const [busy, setBusy] = useState(false);
   const [extMsg, setExtMsg] = useState('');
+
+  // Multi-device Email & Password state
+  const [email, setEmail] = useState(data.user?.email ?? '');
+  const [password, setPassword] = useState('');
+  const [credBusy, setCredBusy] = useState(false);
+
+  // Mobile QR pairing state
+  const [qrData, setQrData] = useState<{ code: string; qrSvg: string; expiresAt: string } | null>(null);
+  const [qrBusy, setQrBusy] = useState(false);
+
   const a = data.account;
   const c = data.credentials;
   const ready = authToken.trim().length >= 10 && ct0.trim().length >= 10 && twid.trim().length >= 3;
@@ -65,6 +75,20 @@ export function XCredentials() {
     }, 1500);
   }
 
+  async function saveEmailPassword() {
+    setCredBusy(true);
+    const r = await act(api('/api/auth/set-credentials', 'POST', { email, password }), 'Email & password saved for multi-device login');
+    setCredBusy(false);
+    if (r) setPassword('');
+  }
+
+  async function generateQr() {
+    setQrBusy(true);
+    const r = await act(api<{ code: string; qrSvg: string; expiresAt: string }>('/api/auth/qr', 'POST', {}));
+    setQrBusy(false);
+    if (r) setQrData(r);
+  }
+
   const remove = () => modals.openConfirmModal({
     title: 'Remove saved cookies?', children: <Text size="sm">The bot falls back to the X_API_KEY environment variable, if set. Otherwise X actions stop.</Text>,
     labels: { confirm: 'Remove', cancel: 'Cancel' }, confirmProps: { color: 'red' },
@@ -76,6 +100,7 @@ export function XCredentials() {
       <Group gap="xs">
         <Text size="sm">X:</Text>
         <Badge color={a.status === 'connected' ? 'teal' : 'red'} variant="light" style={{ textTransform: 'none' }}>{a.status}{a.username ? ` · @${a.username}` : ''}</Badge>
+        {data.user?.hasPassword && <Badge color="indigo" variant="outline" size="sm">Email login enabled</Badge>}
       </Group>
       {a.detail && a.status !== 'connected' && <Alert color="red" p="xs"><Text size="xs" style={{ wordBreak: 'break-word' }}>{a.detail}</Text></Alert>}
       <Text size="xs" c="dimmed">
@@ -90,7 +115,38 @@ export function XCredentials() {
       </Group>
       {extMsg && <Alert color="yellow" p="xs"><Text size="xs">{extMsg}</Text></Alert>}
 
-      <Text size="sm" fw={600} mt="xs">{a.status === 'connected' ? 'Or replace cookies manually' : 'Or enter your X cookies manually'}</Text>
+      <Divider my="xs" label="Mobile QR Code Pairing" labelPosition="left" />
+      <Text size="xs" c="dimmed">
+        Want to log your phone into JustBot without typing a password? Generate a one-time QR code (also available directly inside the JustBot Chrome Extension popup).
+      </Text>
+      <Group>
+        <Button variant="light" leftSection={<IconQrcode size={16} />} onClick={generateQr} loading={qrBusy}>
+          {qrData ? 'Refresh Mobile QR Code' : 'Show Mobile Login QR Code'}
+        </Button>
+      </Group>
+      {qrData && (
+        <Paper withBorder p="sm" maw={260}>
+          <Stack align="center" gap="xs">
+            <Box w={180} h={180} bg="white" p={6} style={{ borderRadius: 8 }} dangerouslySetInnerHTML={{ __html: qrData.qrSvg }} />
+            <Text size="sm" fw={700}>6-Digit Code: {qrData.code}</Text>
+            <Text size="xs" c="dimmed" ta="center">Scan with your phone camera or enter this 6-digit code on the mobile login screen (valid 5 min).</Text>
+          </Stack>
+        </Paper>
+      )}
+
+      <Divider my="xs" label="Email & Password Fallback (Other Devices)" labelPosition="left" />
+      <Text size="xs" c="dimmed">
+        Set an email and password on your account so you can sign in from other browsers or devices anytime.
+      </Text>
+      <TextInput label="Email address" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.currentTarget.value)} />
+      <PasswordInput label="Set / update password (min 8 chars)" value={password} onChange={(e) => setPassword(e.currentTarget.value)} />
+      <Group>
+        <Button variant="default" onClick={saveEmailPassword} loading={credBusy} disabled={!email.includes('@') || password.length < 8}>
+          Save Email &amp; Password
+        </Button>
+      </Group>
+
+      <Divider my="xs" label="Manual X Cookie Entry" labelPosition="left" />
       <Text size="xs" c="dimmed">On x.com in a desktop browser: DevTools → Application → Cookies → https://x.com. Copy the values of <b>auth_token</b>, <b>ct0</b> and <b>twid</b> (keep <code>u%3D…</code> as is).</Text>
       <TextInput label="Paste full cookie string (optional)" description="e.g. auth_token=…; ct0=…; twid=… — fills the fields below" placeholder="auth_token=…; ct0=…; twid=…" value="" onChange={(e) => onPaste(e.currentTarget.value)} autoComplete="off" />
       <PasswordInput label="auth_token" value={authToken} onChange={(e) => setAuthToken(e.currentTarget.value)} autoComplete="off" />
@@ -99,7 +155,6 @@ export function XCredentials() {
       <Group>
         <Button variant="default" onClick={() => save()} loading={busy} disabled={!ready}>Verify &amp; save manually</Button>
       </Group>
-      <Text size="xs" c="dimmed">Logging out of x.com invalidates these cookies, so use a dedicated account and avoid logging it out.</Text>
 
       <Button variant="default" leftSection={<IconLogout size={16} />} mt="sm" onClick={async () => { await api('/api/logout', 'POST'); location.href = '/login'; }}>Sign out of dashboard</Button>
     </Stack>

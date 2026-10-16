@@ -1,6 +1,10 @@
 const urlInput = document.getElementById('justbotUrl');
 const syncBtn = document.getElementById('syncBtn');
+const qrBtn = document.getElementById('qrBtn');
 const copyBtn = document.getElementById('copyBtn');
+const qrBox = document.getElementById('qrBox');
+const qrSvgContainer = document.getElementById('qrSvgContainer');
+const qrCodeText = document.getElementById('qrCodeText');
 const statusEl = document.getElementById('status');
 
 function showStatus(msg, ok) {
@@ -21,19 +25,49 @@ async function init() {
 
 syncBtn.addEventListener('click', async () => {
   syncBtn.disabled = true;
-  showStatus('Verifying & syncing X session...', true);
+  showStatus('Signing in with X session...', true);
   try {
     const baseUrl = urlInput.value.trim() || 'http://localhost:3007';
     const res = await chrome.runtime.sendMessage({ type: 'SYNC_TO_JUSTBOT', baseUrl });
     if (res?.ok) {
-      showStatus(`Connected @${res.username} to JustBot!`, true);
+      showStatus(`Signed in as @${res.username}! Opening JustBot...`, true);
+      await chrome.tabs.create({ url: res.baseUrl || baseUrl });
     } else {
-      showStatus(res?.error || 'Could not sync session.', false);
+      showStatus(res?.error || 'Could not sign in.', false);
     }
   } catch (err) {
-    showStatus(err instanceof Error ? err.message : 'Sync failed', false);
+    showStatus(err instanceof Error ? err.message : 'Sign-in failed', false);
   } finally {
     syncBtn.disabled = false;
+  }
+});
+
+qrBtn.addEventListener('click', async () => {
+  qrBtn.disabled = true;
+  showStatus('Generating mobile login QR code...', true);
+  try {
+    const baseUrl = urlInput.value.trim() || 'http://localhost:3007';
+    const res = await chrome.runtime.sendMessage({ type: 'GENERATE_MOBILE_QR', baseUrl });
+    if (res?.ok) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(res.qrSvg, 'image/svg+xml');
+      const svgEl = doc.querySelector('svg');
+      qrSvgContainer.replaceChildren();
+      if (svgEl) {
+        svgEl.style.width = '100%';
+        svgEl.style.height = '100%';
+        qrSvgContainer.appendChild(document.importNode(svgEl, true));
+      }
+      qrCodeText.textContent = `Code: ${res.code}`;
+      qrBox.style.display = 'block';
+      showStatus(`Mobile QR ready for @${res.username}`, true);
+    } else {
+      showStatus(res?.error || 'Could not generate QR code.', false);
+    }
+  } catch (err) {
+    showStatus(err instanceof Error ? err.message : 'QR generation failed', false);
+  } finally {
+    qrBtn.disabled = false;
   }
 });
 

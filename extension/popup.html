@@ -59,12 +59,35 @@
         opacity: 0.6;
         cursor: default;
       }
+      #qrBox {
+        display: none;
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 8px;
+        background: #1a1b1e;
+        border: 1px solid #373a40;
+        text-align: center;
+      }
+      #qrSvgContainer {
+        width: 170px;
+        height: 170px;
+        margin: 0 auto 8px;
+        background: #fff;
+        padding: 6px;
+        border-radius: 8px;
+      }
+      #qrCodeText {
+        font-size: 14px;
+        font-weight: 700;
+        color: #fff;
+      }
       #status {
         font-size: 12px;
         padding: 8px;
         border-radius: 6px;
         display: none;
         word-break: break-word;
+        margin-top: 6px;
       }
       #status.ok {
         display: block;
@@ -80,11 +103,17 @@
   </head>
   <body>
     <h2>JustBot X Connector</h2>
-    <p>Sync your logged-in X session to JustBot in 1 click without sharing your password.</p>
+    <p>1-Click Sign In to JustBot using your active X session, or scan a QR code to log in your phone.</p>
     <label for="justbotUrl">JustBot Dashboard URL</label>
     <input id="justbotUrl" type="url" value="http://localhost:3007" />
-    <button id="syncBtn" type="button">1-Click Sync to JustBot</button>
+    <button id="syncBtn" type="button">1-Click Sign In &amp; Open JustBot</button>
+    <button id="qrBtn" type="button" class="secondary">Mobile Login QR Code</button>
     <button id="copyBtn" type="button" class="secondary">Copy Cookie String</button>
+    <div id="qrBox">
+      <div id="qrSvgContainer"></div>
+      <div id="qrCodeText"></div>
+      <p style="margin: 4px 0 0; font-size: 11px;">Scan with your phone camera or enter this 6-digit code on the mobile login screen.</p>
+    </div>
     <div id="status"></div>
     <script src="popup.js"></script>
   </body>

@@ -5,11 +5,12 @@ import { pushConfigured } from '../core/push';
 import { credentialInfo } from '../core/x/credentials';
 import { startOfDay, startOfMonth } from '../core/time';
 import { env } from '../core/config';
+import { getCurrentUser } from './auth';
 
 export async function getDashboardData() {
   const tz = env().TZ;
   const day = startOfDay(tz);
-  const [control, settings, account, jobs, drafts, actions, errors, usage, counts, postStats, costSeries, actionSeries, byPurpose, subs, creds] = await Promise.all([
+  const [control, settings, account, jobs, drafts, actions, errors, usage, counts, postStats, costSeries, actionSeries, byPurpose, subs, creds, currentUser] = await Promise.all([
     getControl(),
     getSettings(),
     q(`SELECT status, username, checked_at, detail FROM account`),
@@ -25,6 +26,7 @@ export async function getDashboardData() {
     q(`SELECT purpose AS name, sum(cost_usd)::float AS value FROM ai_usage WHERE created_at >= $1 GROUP BY 1 ORDER BY 2 DESC`, [startOfMonth(tz)]),
     q(`SELECT count(*)::int n FROM push_subscriptions`),
     credentialInfo(),
+    getCurrentUser(),
   ]);
   const pivot = new Map<string, any>();
   for (const r of actionSeries.rows) {
@@ -39,6 +41,14 @@ export async function getDashboardData() {
     series: { cost: costSeries.rows as { d: string; cost: number; tokens: number }[], actions: [...pivot.values()] as { d: string; post: number; reply: number; like: number; repost: number }[], byPurpose: byPurpose.rows as { name: string; value: number }[] },
     credentials: creds,
     push: { configured: pushConfigured(), devices: subs.rows[0].n as number },
+    user: currentUser ? {
+      id: currentUser.id,
+      name: currentUser.name,
+      email: currentUser.hasCustomEmail ? currentUser.email : '',
+      xUsername: currentUser.xUsername,
+      hasCustomEmail: currentUser.hasCustomEmail,
+      hasPassword: !!currentUser.passwordHash,
+    } : null,
   };
 }
 export type DashboardData = Awaited<ReturnType<typeof getDashboardData>>;

@@ -37,6 +37,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         sendResponse(res);
         return;
       }
+
       if (message?.type === 'SYNC_TO_JUSTBOT') {
         const cookies = await readXCookies();
         if (!cookies.ok) {
@@ -47,8 +48,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         const baseUrl = String(message.baseUrl || stored.justbotUrl || 'http://localhost:3007').replace(/\/+$/, '');
         await chrome.storage.local.set({ justbotUrl: baseUrl });
 
-        const resp = await fetch(`${baseUrl}/api/x-credentials`, {
-          method: 'PUT',
+        const resp = await fetch(`${baseUrl}/api/auth/x-login`, {
+          method: 'POST',
           headers: { 'content-type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
@@ -61,13 +62,47 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         if (!resp.ok) {
           sendResponse({
             ok: false,
-            error: data.error || `JustBot returned HTTP ${resp.status}. Make sure you are signed into JustBot at ${baseUrl}.`,
+            error: data.error || `JustBot returned HTTP ${resp.status}.`,
           });
           return;
         }
-        sendResponse({ ok: true, username: data.username });
+        sendResponse({ ok: true, username: data.username, baseUrl });
         return;
       }
+
+      if (message?.type === 'GENERATE_MOBILE_QR') {
+        const cookies = await readXCookies();
+        if (!cookies.ok) {
+          sendResponse(cookies);
+          return;
+        }
+        const stored = await chrome.storage.local.get('justbotUrl');
+        const baseUrl = String(message.baseUrl || stored.justbotUrl || 'http://localhost:3007').replace(/\/+$/, '');
+        await chrome.storage.local.set({ justbotUrl: baseUrl });
+
+        const resp = await fetch(`${baseUrl}/api/auth/qr`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            authToken: cookies.authToken,
+            ct0: cookies.ct0,
+            twid: cookies.twid,
+            baseUrl,
+          }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          sendResponse({
+            ok: false,
+            error: data.error || `JustBot returned HTTP ${resp.status}.`,
+          });
+          return;
+        }
+        sendResponse({ ok: true, code: data.code, qrSvg: data.qrSvg, username: data.username });
+        return;
+      }
+
       sendResponse({ ok: false, error: 'Unknown message type' });
     } catch (err) {
       sendResponse({ ok: false, error: err instanceof Error ? err.message : 'Unexpected extension error' });
