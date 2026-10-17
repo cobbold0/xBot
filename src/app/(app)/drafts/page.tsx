@@ -2,9 +2,10 @@
 import { useState } from 'react';
 import { ActionIcon, Affix, Badge, Button, Card, Drawer, Group, Popover, RingProgress, SegmentedControl, Stack, Text, Textarea } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
-import { IconCalendarTime, IconCheck, IconPlus, IconX } from '@tabler/icons-react';
+import { IconCalendarTime, IconCheck, IconPlus, IconSend, IconX } from '@tabler/icons-react';
 import { useDash } from '@/components/dash';
 import { Empty, PageTitle } from '@/components/ui';
+import { FeedbackWidget } from '@/components/feedback';
 import { api, fmtTime, type Dash } from '@/web/client';
 
 type Draft = Dash['drafts'][number];
@@ -80,8 +81,17 @@ function DraftCard({ d, max }: { d: Draft; max: number }) {
         )}
         {d.error && <Text size="xs" c="red">{d.error}</Text>}
         {d.x_id && <Text size="xs"><a href={`https://x.com/i/web/status/${d.x_id}`} target="_blank" rel="noreferrer">View on X</a></Text>}
-        <Group justify="space-between" wrap="nowrap">
-          {editable ? <Counter len={text.length} max={max} /> : <span />}
+        <Group justify="space-between" wrap="wrap" gap="xs">
+          <Group gap="sm" wrap="nowrap">
+            {editable ? <Counter len={text.length} max={max} /> : null}
+            <FeedbackWidget
+              targetType="draft"
+              targetId={d.id}
+              initialRating={(d as any).feedback_rating}
+              initialNote={(d as any).feedback_note}
+              size="xs"
+            />
+          </Group>
           <Group gap="xs" wrap="nowrap">
             {editable && text !== d.text && <Button size="compact-md" variant="default" disabled={!text.trim() || text.length > max} onClick={() => post({ action: 'edit', text }, 'Saved')}>Save</Button>}
             {d.status === 'draft' && (
@@ -97,6 +107,18 @@ function DraftCard({ d, max }: { d: Draft; max: number }) {
                 </Popover>
                 <Button size="compact-md" leftSection={<IconCheck size={16} />} disabled={text !== d.text || text.length > max} onClick={() => post({ action: 'approve' }, 'Approved')}>Approve</Button>
               </>
+            )}
+            {(d.status === 'draft' || d.status === 'approved') && (
+              <Button
+                size="compact-md"
+                color="teal"
+                variant="light"
+                leftSection={<IconSend size={15} />}
+                disabled={text !== d.text || text.length > max}
+                onClick={() => act(api('/api/drafts/publish-now', 'POST', { id: d.id }), 'Published to X!')}
+              >
+                Publish now
+              </Button>
             )}
             {editable && <ActionIcon variant="light" color="red" size="lg" aria-label="Reject" onClick={() => post({ action: 'reject' }, 'Rejected')}><IconX size={18} /></ActionIcon>}
             {d.status === 'failed' && <Button size="compact-md" variant="default" onClick={() => post({ action: 'retry' }, 'Moved back to drafts')}>Back to drafts</Button>}

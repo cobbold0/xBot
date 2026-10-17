@@ -4,12 +4,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ActionIcon, AppShell, Badge, Button, Group, Indicator, NavLink, Stack, Text, UnstyledButton } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { IconActivity, IconChartAreaLine, IconHome2, IconLogout, IconPencil, IconPlayerPause, IconPlayerPlay, IconSettings, IconWifiOff } from '@tabler/icons-react';
+import { IconActivity, IconChartAreaLine, IconFlame, IconHome2, IconLogout, IconPencil, IconPlayerPause, IconPlayerPlay, IconSettings, IconWifiOff } from '@tabler/icons-react';
 import { api, type Dash } from '@/web/client';
 import { DashProvider, useDash } from '@/components/dash';
 
 const NAV = [
   { href: '/', label: 'Home', icon: IconHome2 },
+  { href: '/trends', label: 'Trends', icon: IconFlame },
   { href: '/drafts', label: 'Drafts', icon: IconPencil },
   { href: '/activity', label: 'Activity', icon: IconActivity },
   { href: '/usage', label: 'Usage', icon: IconChartAreaLine },

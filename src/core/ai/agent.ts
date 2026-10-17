@@ -38,8 +38,18 @@ export class AiAgent {
     return out;
   }
 
-  async generatePosts(count: number, recent: string[], inspiration: XPost[]) {
-    const data = await this.run('generate', generationPrompt(this.settings, recent, count, inspiration), GeneratedPostsSchema, 1000 * count + 1000);
+  async generatePosts(
+    count: number,
+    recent: string[],
+    inspiration: XPost[],
+    feedbackExamples?: { liked?: string[]; disliked?: string[] },
+  ) {
+    const data = await this.run(
+      'generate',
+      generationPrompt(this.settings, recent, count, inspiration, feedbackExamples),
+      GeneratedPostsSchema,
+      1000 * count + 1000,
+    );
     return data.posts.slice(0, count);
   }
 

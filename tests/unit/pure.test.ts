@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseModelJson, AnalysisBatchSchema } from '../../src/core/ai/schemas';
-import { sanitizeUntrusted, wrapPost } from '../../src/core/ai/prompts';
+import { generationPrompt, sanitizeUntrusted, wrapPost } from '../../src/core/ai/prompts';
 import { isNearDuplicate, similarity, textHash } from '../../src/core/generation/dedup';
 import { decideEngagement } from '../../src/core/policy/engagement';
 import { defaultSettings } from '../../src/core/settings';
@@ -34,6 +34,17 @@ describe('prompt injection defenses', () => {
   it('wraps posts and strips attribute injection', () => {
     const w = wrapPost(fakePost('12"><x', 'hello', { authorHandle: 'a"b' }));
     expect(w).toMatch(/^<untrusted_post id="12x" author="ab"/);
+  });
+  it('injects user feedback into generation prompt for continuous learning', () => {
+    const s = defaultSettings();
+    const p = generationPrompt(s, [], 2, [], {
+      liked: ['This is an awesome insightful breakdown!'],
+      disliked: ['Clickbait headline that is annoying'],
+    });
+    expect(p.user).toContain('Examples of previous posts the user highly rated');
+    expect(p.user).toContain('This is an awesome insightful breakdown!');
+    expect(p.user).toContain('Examples of posts the user disliked');
+    expect(p.user).toContain('Clickbait headline that is annoying');
   });
 });
 

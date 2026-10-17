@@ -25,17 +25,33 @@ Output: {"results":[{"id":string,"relevance":1-10,"quality":1-10,"topic":string,
   };
 }
 
-export function generationPrompt(s: Settings, recent: string[], count: number, inspiration: XPost[]) {
+export function generationPrompt(
+  s: Settings,
+  recent: string[],
+  count: number,
+  inspiration: XPost[],
+  feedbackExamples?: { liked?: string[]; disliked?: string[] },
+) {
   const focus = [
     s.topics.length ? `Topics: ${JSON.stringify(s.topics)}.` : '',
     s.accounts.length ? `Targeted accounts/people: ${JSON.stringify(s.accounts)}.` : '',
     s.searchTerms.length ? `Tracked keywords: ${JSON.stringify(s.searchTerms)}.` : '',
   ].filter(Boolean).join(' ');
+
+  const feedbackGuidance = [
+    feedbackExamples?.liked?.length
+      ? `Examples of previous posts the user highly rated (match this style, tone, and framing):\n${feedbackExamples.liked.map((t) => `✓ ${t}`).join('\n')}`
+      : '',
+    feedbackExamples?.disliked?.length
+      ? `Examples of posts the user disliked (avoid these patterns/tones):\n${feedbackExamples.disliked.map((t) => `✗ ${t}`).join('\n')}`
+      : '',
+  ].filter(Boolean).join('\n\n');
+
   return {
     system: `You write original X posts for the account owner's trending news & social feed. Voice: ${s.voice}
 ${focus} Each post must be at most ${s.maxPostChars} characters, original, non-spammy, no fabricated facts or quotes, no @mentions of others. Synthesize what is currently trending from the scraped posts (X, Google News, Reddit) below into engaging, original posts without copying verbatim. Also suggest the best visual (image or short video) and a ready-to-use AI generation/search prompt for it. ${SECURITY}
 Output: {"posts":[{"text":string,"topic":string,"rationale":string,"mediaType":"image"|"video"|"none","mediaPrompt":string}]} with exactly ${count} posts. Do not repeat or closely paraphrase the recent posts listed.`,
-    user: `Recent posts to avoid repeating:\n${recent.slice(0, 30).map((t) => `- ${t.replace(/\s+/g, ' ').slice(0, 200)}`).join('\n') || '(none)'}\n\nTrending scraped posts (sorted by engagement; synthesize key news/trends without copying verbatim):\n${inspiration.slice(0, 8).map(wrapPost).join('\n') || '(none)'}`,
+    user: `${feedbackGuidance ? feedbackGuidance + '\n\n' : ''}Recent posts to avoid repeating:\n${recent.slice(0, 30).map((t) => `- ${t.replace(/\s+/g, ' ').slice(0, 200)}`).join('\n') || '(none)'}\n\nTrending scraped posts (sorted by engagement; synthesize key news/trends without copying verbatim):\n${inspiration.slice(0, 8).map(wrapPost).join('\n') || '(none)'}`,
   };
 }
 

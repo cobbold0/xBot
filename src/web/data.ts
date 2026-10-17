@@ -21,8 +21,18 @@ export async function getDashboardData() {
       getSettings(userId),
       q(`SELECT status, username, checked_at, detail FROM account WHERE user_id = $1`, [userId]),
       q(`SELECT name, next_run_at, last_finished_at, last_status, last_error FROM jobs ORDER BY name`),
-      q(`SELECT id::int, kind, text, status, scheduled_for, reply_to_x_id, x_id, topic, rationale, media_type, media_prompt, error, created_at FROM drafts WHERE user_id = $1 ORDER BY id DESC LIMIT 80`, [userId]),
-      q(`SELECT id::int, type, target_x_id, status, detail, result_x_id, created_at FROM actions WHERE user_id = $1 ORDER BY id DESC LIMIT 100`, [userId]),
+      q(`SELECT d.id::int, d.kind, d.text, d.status, d.scheduled_for, d.reply_to_x_id, d.x_id, d.topic, d.rationale, d.media_type, d.media_prompt, d.error, d.created_at, fb.rating AS feedback_rating, fb.note AS feedback_note
+         FROM drafts d
+         LEFT JOIN feedback fb ON fb.user_id = d.user_id AND fb.target_type = 'draft' AND fb.target_id = d.id
+         WHERE d.user_id = $1
+         ORDER BY d.id DESC LIMIT 80`, [userId]),
+      q(`SELECT a.id::int, a.type, a.target_x_id, a.draft_id::int, a.status, a.detail, a.result_x_id, a.created_at, d.text AS draft_text, p.author_handle AS target_author_handle, p.text AS target_text, p.source AS target_source, fb.rating AS feedback_rating, fb.note AS feedback_note
+         FROM actions a
+         LEFT JOIN drafts d ON d.id = a.draft_id
+         LEFT JOIN posts p ON p.user_id = a.user_id AND p.x_id = a.target_x_id
+         LEFT JOIN feedback fb ON fb.user_id = a.user_id AND fb.target_type = 'action' AND fb.target_id = a.id
+         WHERE a.user_id = $1
+         ORDER BY a.id DESC LIMIT 100`, [userId]),
       q(`SELECT id::int, source, message, created_at FROM errors WHERE user_id = $1 ORDER BY id DESC LIMIT 30`, [userId]),
       usageSummary(tz, userId),
       q(`SELECT type, count(*)::int n FROM actions WHERE user_id = $1 AND status IN ('attempted','succeeded') AND created_at >= $2 GROUP BY type`, [userId, day]),

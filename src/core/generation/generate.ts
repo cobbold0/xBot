@@ -19,7 +19,20 @@ export async function generateDrafts(ai: AiAgent, s: Settings, count = 2): Promi
     [userId],
   );
   const inspiration: XPost[] = insp.map((r: any) => ({ id: r.x_id, text: r.text, authorId: '', authorHandle: r.author_handle ?? '', createdAt: '', likes: r.metadata?.likes ?? 0, reposts: r.metadata?.reposts ?? 0, replies: 0, isReply: false, isRepost: false }));
-  const generated = await ai.generatePosts(count, known, inspiration);
+
+  const { rows: fbRows } = await q<{ rating: number; text: string }>(
+    `SELECT fb.rating, COALESCE(d.text, a.detail) AS text
+     FROM feedback fb
+     LEFT JOIN drafts d ON fb.target_type = 'draft' AND d.id = fb.target_id
+     LEFT JOIN actions a ON fb.target_type = 'action' AND a.id = fb.target_id
+     WHERE fb.user_id = $1 AND (d.text IS NOT NULL OR a.detail IS NOT NULL)
+     ORDER BY fb.updated_at DESC LIMIT 30`,
+    [userId],
+  );
+  const liked = fbRows.filter((r) => r.rating >= 4 || r.rating === 1).map((r) => r.text.slice(0, 200)).slice(0, 5);
+  const disliked = fbRows.filter((r) => r.rating === -1 || (r.rating > 0 && r.rating <= 2)).map((r) => r.text.slice(0, 200)).slice(0, 5);
+
+  const generated = await ai.generatePosts(count, known, inspiration, { liked, disliked });
   const ids: number[] = [];
   for (const g of generated) {
     const text = g.text.trim();
