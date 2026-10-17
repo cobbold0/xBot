@@ -119,3 +119,58 @@ describe('X error mapping', () => {
     expect(mapError(Object.assign(new Error('x'), { status: 429 })).kind).toBe('rate_limit');
   });
 });
+
+import { FallbackLlm, type LlmClient } from '../../src/core/ai/llm';
+describe('LLM Multi-Provider Fallback', () => {
+  it('calls primary provider when successful', async () => {
+    const primary: LlmClient = {
+      complete: async () => ({ text: '{"ok": true}', inputTokens: 10, outputTokens: 20, model: 'gemini-3.5-flash-lite' }),
+    };
+    const secondary: LlmClient = {
+      complete: async () => { throw new Error('should not be called'); },
+    };
+    const fb = new FallbackLlm([
+      { name: 'Gemini', client: primary },
+      { name: 'OpenAI', client: secondary },
+    ]);
+    const res = await fb.complete({ system: '', user: '', maxTokens: 100 });
+    expect(res.model).toBe('gemini-3.5-flash-lite');
+  });
+
+  it('automatically falls back to secondary when primary hits quota or fails', async () => {
+    const primary: LlmClient = {
+      complete: async () => { throw new Error('Gemini API 429: Resource exhausted / quota exceeded'); },
+    };
+    const secondary: LlmClient = {
+      complete: async () => ({ text: '{"switched": true}', inputTokens: 15, outputTokens: 25, model: 'gpt-4o-mini' }),
+    };
+    const fb = new FallbackLlm([
+      { name: 'Gemini', client: primary },
+      { name: 'OpenAI', client: secondary },
+    ]);
+    const res = await fb.complete({ system: '', user: '', maxTokens: 100 });
+    expect(res.model).toBe('gpt-4o-mini');
+    expect(res.text).toBe('{"switched": true}');
+  });
+
+  it('throws last error if all providers fail', async () => {
+    const p1: LlmClient = { complete: async () => { throw new Error('P1 quota 429'); } };
+    const p2: LlmClient = { complete: async () => { throw new Error('P2 service 503'); } };
+    const fb = new FallbackLlm([
+      { name: 'P1', client: p1 },
+      { name: 'P2', client: p2 },
+    ]);
+    await expect(fb.complete({ system: '', user: '', maxTokens: 100 })).rejects.toThrow('P2 service 503');
+  });
+
+  it('calculates provider-specific pricing for GPT-4o-mini vs Gemini', () => {
+    // 1M in, 1M out for gpt-4o-mini ($0.15 in, $0.60 out = $0.75)
+    const gptCost = estimateCost(1_000_000, 1_000_000, 'gpt-4o-mini');
+    expect(gptCost).toBeCloseTo(0.75);
+
+    // 1M in, 1M out for gemini ($0.10 in, $0.40 out = $0.50)
+    const geminiCost = estimateCost(1_000_000, 1_000_000, 'gemini-3.5-flash-lite');
+    expect(geminiCost).toBeCloseTo(0.50);
+  });
+});
+

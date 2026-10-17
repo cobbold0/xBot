@@ -4,7 +4,33 @@ import { startOfDay, startOfMonth } from '../time';
 import type { Settings } from '../settings';
 import { getTenantId } from '../tenant';
 
-export function estimateCost(inputTokens: number, outputTokens: number, e = env()): number {
+export function estimateCost(
+  inputTokens: number,
+  outputTokens: number,
+  modelOrEnv?: string | ReturnType<typeof env>,
+  maybeEnv?: ReturnType<typeof env>,
+): number {
+  let model: string | undefined;
+  let e: ReturnType<typeof env>;
+
+  if (typeof modelOrEnv === 'string') {
+    model = modelOrEnv;
+    e = maybeEnv ?? env();
+  } else if (modelOrEnv && typeof modelOrEnv === 'object') {
+    e = modelOrEnv;
+  } else {
+    e = env();
+  }
+
+  const m = model?.toLowerCase() ?? '';
+  if (m.startsWith('gpt-') || m.includes('openai')) {
+    const inRate = e.OPENAI_PRICE_INPUT_PER_MTOK ?? 0.15;
+    const outRate = e.OPENAI_PRICE_OUTPUT_PER_MTOK ?? 0.60;
+    return (inputTokens * inRate + outputTokens * outRate) / 1_000_000;
+  }
+  if (m.startsWith('gemini-')) {
+    return (inputTokens * 0.10 + outputTokens * 0.40) / 1_000_000;
+  }
   return (inputTokens * e.ANTHROPIC_PRICE_INPUT_PER_MTOK + outputTokens * e.ANTHROPIC_PRICE_OUTPUT_PER_MTOK) / 1_000_000;
 }
 
@@ -30,5 +56,5 @@ export async function assertBudget(s: Settings, tz = env().TZ) {
 }
 
 export async function recordUsage(purpose: string, model: string, inputTokens: number, outputTokens: number, userId = getTenantId()) {
-  await q('INSERT INTO ai_usage(user_id, purpose, model, input_tokens, output_tokens, cost_usd) VALUES ($1,$2,$3,$4,$5,$6)', [userId, purpose, model, inputTokens, outputTokens, estimateCost(inputTokens, outputTokens)]);
+  await q('INSERT INTO ai_usage(user_id, purpose, model, input_tokens, output_tokens, cost_usd) VALUES ($1,$2,$3,$4,$5,$6)', [userId, purpose, model, inputTokens, outputTokens, estimateCost(inputTokens, outputTokens, model)]);
 }
